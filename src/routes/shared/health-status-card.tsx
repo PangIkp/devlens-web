@@ -24,19 +24,19 @@ export function HealthStatusCard() {
     <div className="grid gap-4 md:grid-cols-2">
       <div>
         <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Service</p>
-        <p className="mt-2 text-xl font-semibold">{data.data.service}</p>
+        <p className="mt-2 text-xl font-semibold">{data.service ?? "devlens-api"}</p>
       </div>
       <div>
         <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Status</p>
-        <p className="mt-2 text-xl font-semibold capitalize">{data.data.status}</p>
+        <p className="mt-2 text-xl font-semibold capitalize">{data.status}</p>
       </div>
       <div>
         <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Version</p>
-        <p className="mt-2 text-lg font-medium">{data.data.version}</p>
+        <p className="mt-2 text-lg font-medium">{data.version ?? "Not available"}</p>
       </div>
       <div>
         <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Timestamp</p>
-        <p className="mt-2 text-lg font-medium">{data.data.timestamp}</p>
+        <p className="mt-2 text-lg font-medium">{data.timestamp}</p>
       </div>
     </div>
   );

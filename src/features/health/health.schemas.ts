@@ -1,12 +1,19 @@
 import { z } from "zod";
 
-export const healthResponseSchema = z.object({
-  data: z.object({
-    status: z.string(),
-    service: z.string(),
-    version: z.string(),
-    timestamp: z.string(),
-  }),
+const healthPayloadSchema = z.object({
+  status: z.string(),
+  timestamp: z.string(),
+  service: z.string().optional(),
+  version: z.string().optional(),
 });
+
+export const healthResponseSchema = z
+  .union([
+    healthPayloadSchema,
+    z.object({
+      data: healthPayloadSchema,
+    }),
+  ])
+  .transform((value) => ("data" in value ? value.data : value));
 
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
