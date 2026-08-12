@@ -29,13 +29,19 @@ function createRepositoriesFetchStub(options?: {
           data: [
             {
               id: organizationId,
-              githubId: 1,
+              githubId: "1",
               name: "DevLens Labs",
               role: "owner",
               createdAt: "2026-08-10T10:00:00Z",
               updatedAt: "2026-08-10T10:00:00Z",
             },
           ],
+          pagination: {
+            page: 1,
+            pageSize: 20,
+            totalItems: 1,
+            totalPages: 1,
+          },
         }),
       );
     }
@@ -78,7 +84,7 @@ function createRepositoriesFetchStub(options?: {
       return Promise.resolve(
         jsonResponse(options?.repositoriesStatus ?? 200, {
           data: repositories,
-          meta: {
+          pagination: {
             page: Number(page ?? "1"),
             pageSize: 10,
             totalItems: 11,
@@ -137,12 +143,18 @@ describe("repositories routes", () => {
               data: [
                 {
                   id: organizationId,
-                  githubId: 1,
+                  githubId: "1",
                   name: "DevLens Labs",
                   role: "owner",
                   createdAt: "2026-08-10T10:00:00Z",
                 },
               ],
+              pagination: {
+                page: 1,
+                pageSize: 20,
+                totalItems: 1,
+                totalPages: 1,
+              },
             }),
           );
         }
@@ -179,7 +191,7 @@ describe("repositories routes", () => {
             updatedAt: "2026-08-11T00:00:00Z",
           },
         ],
-        meta: {
+        pagination: {
           page: 1,
           pageSize: 10,
           totalItems: 1,

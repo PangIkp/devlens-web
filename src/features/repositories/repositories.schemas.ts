@@ -32,12 +32,10 @@ export const repositoryResponseSchema = z.object({
 
 export const repositoryListBodySchema = z.object({
   data: z.array(repositorySchema),
-  meta: paginationMetaSchema.optional(),
+  pagination: paginationMetaSchema,
 });
 
 export type Repository = z.infer<typeof repositorySchema>;
 export type RepositoryStatus = z.infer<typeof repositoryStatusSchema>;
-export type RepositoryListResponse = z.infer<typeof repositoryListBodySchema> & {
-  meta: z.infer<typeof paginationMetaSchema>;
-};
+export type RepositoryListResponse = z.infer<typeof repositoryListBodySchema>;
 export type RepositoryResponse = z.infer<typeof repositoryResponseSchema>;

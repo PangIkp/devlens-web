@@ -41,17 +41,7 @@ export async function listRepositories({
     },
   );
 
-  const parsed = repositoryListBodySchema.parse(response);
-
-  return {
-    ...parsed,
-    meta: parsed.meta ?? {
-      page,
-      pageSize,
-      totalItems: parsed.data.length,
-      totalPages: parsed.data.length === 0 ? 0 : page,
-    },
-  };
+  return repositoryListBodySchema.parse(response);
 }
 
 export async function getRepository(repositoryId: string) {
