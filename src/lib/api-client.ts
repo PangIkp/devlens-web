@@ -14,7 +14,11 @@ export class ApiError extends Error {
 }
 
 function buildUrl(path: string, query?: QueryParams) {
-  const url = new URL(path.replace(/^\//, ""), `${env.VITE_API_BASE_URL}/`);
+  const normalizedPath = path.replace(/^\//, "");
+  const baseUrl = env.VITE_API_BASE_URL;
+  const url = baseUrl.startsWith("/")
+    ? new URL(`${baseUrl.replace(/\/$/, "")}/${normalizedPath}`, window.location.origin)
+    : new URL(normalizedPath, `${baseUrl}/`);
 
   if (query) {
     for (const [key, value] of Object.entries(query)) {
@@ -46,11 +50,14 @@ export async function apiRequest<TResponse>(
   init?: RequestInit,
   query?: QueryParams,
 ): Promise<TResponse> {
+  const headers = new Headers(init?.headers);
+
+  if (init?.body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
   const response = await fetch(buildUrl(path, query), {
-    headers: {
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
+    headers,
     ...init,
   });
 

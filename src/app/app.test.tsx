@@ -11,12 +11,10 @@ describe("HealthStatusCard", () => {
         text: () =>
           Promise.resolve(
             JSON.stringify({
-              data: {
-                status: "ok",
-                service: "devlens-api",
-                version: "1.0.0",
-                timestamp: "2026-08-11T00:00:00Z",
-              },
+              status: "ok",
+              service: "devlens-api",
+              version: "1.0.0",
+              timestamp: "2026-08-11T00:00:00Z",
             }),
           ),
       }),
