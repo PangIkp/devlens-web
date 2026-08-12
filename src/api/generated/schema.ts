@@ -31,7 +31,8 @@ export interface paths {
         /** Get organizations accessible by current user */
         get: operations["listOrganizations"];
         put?: never;
-        post?: never;
+        /** Create organization */
+        post: operations["createOrganization"];
         delete?: never;
         options?: never;
         head?: never;
@@ -49,10 +50,54 @@ export interface paths {
         get: operations["getOrganization"];
         put?: never;
         post?: never;
+        /** Soft delete organization */
+        delete: operations["deleteOrganization"];
+        options?: never;
+        head?: never;
+        /** Update organization */
+        patch: operations["updateOrganization"];
+        trace?: never;
+    };
+    "/organizations/{organizationId}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get organization members */
+        get: operations["listOrganizationMembers"];
+        put?: never;
+        /**
+         * Add organization member
+         * @description Authentication is deferred in the current milestone, so `userId` is provided in the request body.
+         */
+        post: operations["createOrganizationMember"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/organizations/{organizationId}/members/{memberId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove organization member
+         * @description This milestone uses hard delete for organization members because `organization_members.deleted_at` is not defined in PostgreSQL schema yet.
+         */
+        delete: operations["deleteOrganizationMember"];
+        options?: never;
+        head?: never;
+        /** Update organization member role */
+        patch: operations["updateOrganizationMember"];
         trace?: never;
     };
     "/organizations/{organizationId}/repositories": {
@@ -65,7 +110,93 @@ export interface paths {
         /** Get repositories in an organization */
         get: operations["listRepositories"];
         put?: never;
+        /** Create repository under an organization */
+        post: operations["createRepository"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organizations/{organizationId}/github/connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get GitHub connection status for an organization */
+        get: operations["getGitHubConnection"];
+        put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organizations/{organizationId}/github/installations/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start GitHub App installation flow for an organization */
+        post: operations["startGitHubInstallation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organizations/{organizationId}/github/installations/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Complete GitHub App installation callback */
+        get: operations["completeGitHubInstallation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organizations/{organizationId}/github/repositories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List repositories accessible from the GitHub App installation */
+        get: operations["listAccessibleGitHubRepositories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organizations/{organizationId}/github/repositories/select": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Select accessible GitHub repositories to connect and sync */
+        post: operations["selectAccessibleGitHubRepositories"];
         delete?: never;
         options?: never;
         head?: never;
@@ -86,7 +217,11 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update repository state or metadata
+         * @description Use this endpoint to rename, change default branch, deactivate, or archive a repository without deleting historical records.
+         */
+        patch: operations["updateRepository"];
         trace?: never;
     };
     "/repositories/{repositoryId}/sync": {
@@ -134,6 +269,23 @@ export interface paths {
         get: operations["getSyncJob"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/github/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Receive GitHub webhook deliveries */
+        post: operations["handleGitHubWebhook"];
         delete?: never;
         options?: never;
         head?: never;
@@ -234,6 +386,15 @@ export interface components {
             status: string;
             /** Format: date-time */
             timestamp: string;
+            dependencies: {
+                postgres: components["schemas"]["DependencyStatus"];
+                clickhouse: components["schemas"]["DependencyStatus"];
+            };
+        };
+        DependencyStatus: {
+            /** @example ok */
+            status: string;
+            message?: string;
         };
         PaginationMeta: {
             /** @example 1 */
@@ -250,20 +411,64 @@ export interface components {
             id: string;
             /** Format: int64 */
             githubId: number;
-            /** @example DevLens Labs */
+            /** @example devlens */
+            slug: string;
+            /** @example DevLens */
             name: string;
-            /** @enum {string} */
-            role: "owner" | "admin" | "maintainer" | "viewer";
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
             updatedAt?: string | null;
+        };
+        CreateOrganizationRequest: {
+            /**
+             * Format: int64
+             * @example 123456
+             */
+            githubId: number;
+            /** @example devlens */
+            slug: string;
+            /** @example DevLens */
+            name: string;
+        };
+        UpdateOrganizationRequest: {
+            /** @example devlens-platform */
+            slug?: string;
+            /** @example DevLens Platform */
+            name?: string;
         };
         OrganizationResponse: {
             data: components["schemas"]["Organization"];
         };
         OrganizationListResponse: {
             data: components["schemas"]["Organization"][];
+            pagination: components["schemas"]["PaginationMeta"];
+        };
+        CreateOrganizationMemberRequest: {
+            /** Format: uuid */
+            userId: string;
+            /** @enum {string} */
+            role: "owner" | "admin" | "member";
+        };
+        UpdateOrganizationMemberRequest: {
+            /** @enum {string} */
+            role: "owner" | "admin" | "member";
+        };
+        OrganizationMember: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            /** Format: uuid */
+            userId: string;
+            /** @enum {string} */
+            role: "owner" | "admin" | "member";
+        };
+        OrganizationMemberResponse: {
+            data: components["schemas"]["OrganizationMember"];
+        };
+        OrganizationMemberListResponse: {
+            data: components["schemas"]["OrganizationMember"][];
         };
         Repository: {
             /** Format: uuid */
@@ -288,12 +493,110 @@ export interface components {
             /** Format: date-time */
             updatedAt?: string | null;
         };
+        GitHubConnection: {
+            /** Format: uuid */
+            organizationId: string;
+            /** @example github */
+            provider: string;
+            /** @enum {string} */
+            state: "not_connected" | "installation_required" | "connected" | "syncing" | "sync_failed";
+            /** Format: int64 */
+            installationId?: number | null;
+            accountLogin?: string | null;
+            /** @enum {string|null} */
+            accountType?: "User" | "Organization" | null;
+            /** @enum {string|null} */
+            targetType?: "account" | "organization" | "selected_repositories" | null;
+            reconnectRequired?: boolean;
+            /** Format: date-time */
+            lastSyncedAt?: string | null;
+            lastSyncError?: string | null;
+            /** @example 3 */
+            connectedRepositories?: number;
+        };
+        GitHubConnectionResponse: {
+            data: components["schemas"]["GitHubConnection"];
+        };
+        StartGitHubInstallationRequest: {
+            /** Format: uri */
+            redirectUrl?: string | null;
+        };
+        StartGitHubInstallation: {
+            /** Format: uri */
+            installUrl: string;
+            /** @description Opaque backend-generated state for installation flow correlation */
+            state: string;
+        };
+        StartGitHubInstallationResponse: {
+            data: components["schemas"]["StartGitHubInstallation"];
+        };
+        GitHubAccessibleRepository: {
+            /** Format: int64 */
+            githubRepositoryId: number;
+            /** @example devlens-labs/devlens-api */
+            fullName: string;
+            /** @example devlens-api */
+            name?: string;
+            /** @example devlens-labs */
+            ownerLogin?: string;
+            private: boolean;
+            defaultBranch?: string | null;
+            /** @enum {string} */
+            installationStatus: "accessible" | "permission_missing" | "installation_required" | "suspended";
+            /** @enum {string} */
+            selectionStatus: "not_selected" | "selected" | "syncing" | "sync_failed" | "synced";
+            /** Format: uuid */
+            linkedRepositoryId?: string | null;
+            lastSyncError?: string | null;
+        };
+        GitHubAccessibleRepositoryListResponse: {
+            data: components["schemas"]["GitHubAccessibleRepository"][];
+            pagination: components["schemas"]["PaginationMeta"];
+        };
+        SelectGitHubRepositoriesRequest: {
+            repositoryIds: number[];
+            /** @default true */
+            autoSync: boolean;
+        };
+        GitHubRepositorySelection: {
+            /** @enum {string} */
+            state: "connected" | "syncing" | "sync_failed";
+            selectedRepositoryIds: number[];
+            createdRepositoryIds?: string[];
+            syncJobIds?: string[];
+        };
+        GitHubRepositorySelectionResponse: {
+            data: components["schemas"]["GitHubRepositorySelection"];
+        };
+        CreateRepositoryRequest: {
+            /**
+             * Format: int64
+             * @example 123456789
+             */
+            githubId: number;
+            /** @example devlens-api */
+            name: string;
+            /** @example devlens-labs/devlens-api */
+            fullName: string;
+            /** @example main */
+            defaultBranch?: string | null;
+        };
+        UpdateRepositoryRequest: {
+            /** @example devlens-api */
+            name?: string;
+            /** @example devlens-labs/devlens-api */
+            fullName?: string;
+            /** @example main */
+            defaultBranch?: string | null;
+            isActive?: boolean;
+            archived?: boolean;
+        };
         RepositoryResponse: {
             data: components["schemas"]["Repository"];
         };
         RepositoryListResponse: {
             data: components["schemas"]["Repository"][];
-            meta: components["schemas"]["PaginationMeta"];
+            pagination: components["schemas"]["PaginationMeta"];
         };
         CreateSyncRequest: {
             /**
@@ -318,6 +621,7 @@ export interface components {
             startedAt?: string | null;
             /** Format: date-time */
             finishedAt?: string | null;
+            errorMessage?: string | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -329,6 +633,20 @@ export interface components {
         SyncJobListResponse: {
             data: components["schemas"]["SyncJob"][];
             meta: components["schemas"]["PaginationMeta"];
+        };
+        GitHubWebhookDelivery: {
+            deliveryId: string;
+            eventType: string;
+            duplicate: boolean;
+            enqueued: boolean;
+            /** Format: uuid */
+            syncJobId?: string | null;
+            action?: string | null;
+            /** Format: date-time */
+            receivedAt: string;
+        };
+        GitHubWebhookResponse: {
+            data: components["schemas"]["GitHubWebhookDelivery"];
         };
         DashboardSummary: {
             /** Format: uuid */
@@ -480,6 +798,7 @@ export interface components {
     parameters: {
         OrganizationId: string;
         RepositoryId: string;
+        MemberId: string;
         SyncJobId: string;
         Page: number;
         PageSize: number;
@@ -523,7 +842,10 @@ export interface operations {
     };
     listOrganizations: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: components["parameters"]["Page"];
+                pageSize?: components["parameters"]["PageSize"];
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -539,7 +861,33 @@ export interface operations {
                     "application/json": components["schemas"]["OrganizationListResponse"];
                 };
             };
-            401: components["responses"]["Unauthorized"];
+            400: components["responses"]["ValidationError"];
+        };
+    };
+    createOrganization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateOrganizationRequest"];
+            };
+        };
+        responses: {
+            /** @description Organization created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            409: components["responses"]["Conflict"];
         };
     };
     getOrganization: {
@@ -562,8 +910,164 @@ export interface operations {
                     "application/json": components["schemas"]["OrganizationResponse"];
                 };
             };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
+            400: components["responses"]["ValidationError"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteOrganization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organization deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationError"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateOrganization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateOrganizationRequest"];
+            };
+        };
+        responses: {
+            /** @description Organization updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listOrganizationMembers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organization member list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationMemberListResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createOrganizationMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateOrganizationMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description Organization member created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationMemberResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    deleteOrganizationMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                memberId: components["parameters"]["MemberId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organization member removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationError"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    updateOrganizationMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                memberId: components["parameters"]["MemberId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateOrganizationMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description Organization member updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationMemberResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -594,9 +1098,179 @@ export interface operations {
                     "application/json": components["schemas"]["RepositoryListResponse"];
                 };
             };
+            400: components["responses"]["ValidationError"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    createRepository: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRepositoryRequest"];
+            };
+        };
+        responses: {
+            /** @description Repository created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getGitHubConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description GitHub connection status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubConnectionResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    startGitHubInstallation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["StartGitHubInstallationRequest"];
+            };
+        };
+        responses: {
+            /** @description Installation flow started */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StartGitHubInstallationResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    completeGitHubInstallation: {
+        parameters: {
+            query: {
+                installation_id: number;
+                setup_action?: string;
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Installation callback handled */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubConnectionResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listAccessibleGitHubRepositories: {
+        parameters: {
+            query?: {
+                page?: components["parameters"]["Page"];
+                pageSize?: components["parameters"]["PageSize"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accessible repository list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubAccessibleRepositoryListResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    selectAccessibleGitHubRepositories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SelectGitHubRepositoriesRequest"];
+            };
+        };
+        responses: {
+            /** @description Repository selection accepted and initial sync scheduled */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubRepositorySelectionResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     getRepository: {
@@ -619,9 +1293,39 @@ export interface operations {
                     "application/json": components["schemas"]["RepositoryResponse"];
                 };
             };
+            400: components["responses"]["ValidationError"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    updateRepository: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: components["parameters"]["RepositoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateRepositoryRequest"];
+            };
+        };
+        responses: {
+            /** @description Repository updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     createRepositorySync: {
@@ -707,6 +1411,38 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    handleGitHubWebhook: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-GitHub-Event": string;
+                "X-GitHub-Delivery": string;
+                "X-Hub-Signature-256": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Webhook accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubWebhookResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
         };
     };
     getDashboardSummary: {

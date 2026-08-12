@@ -75,7 +75,7 @@ function RepositoriesPage() {
     }
   }, [firstOrganizationId, navigate, search.organizationId]);
 
-  const meta = repositoriesQuery.data?.meta;
+  const pagination = repositoriesQuery.data?.pagination;
 
   function updateSearch(next: {
     organizationId?: string;
@@ -223,9 +223,9 @@ function RepositoriesPage() {
             <div className="space-y-4">
               <div className="flex flex-col gap-2 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
                 <p>
-                  Showing page {repositoriesQuery.data.meta.page} of {Math.max(repositoriesQuery.data.meta.totalPages, 1)}
+                  Showing page {repositoriesQuery.data.pagination.page} of {Math.max(repositoriesQuery.data.pagination.totalPages, 1)}
                 </p>
-                <p>{repositoriesQuery.data.meta.totalItems} repositories found</p>
+                <p>{repositoriesQuery.data.pagination.totalItems} repositories found</p>
               </div>
               <RepositoryListTable repositories={repositoriesQuery.data.data} />
               <div className="flex items-center justify-between">
@@ -238,12 +238,12 @@ function RepositoriesPage() {
                   Previous page
                 </Button>
                 <p className="text-sm text-muted-foreground">
-                  Page {meta?.page ?? search.page} / {Math.max(meta?.totalPages ?? 1, 1)}
+                  Page {pagination?.page ?? search.page} / {Math.max(pagination?.totalPages ?? 1, 1)}
                 </p>
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={!meta || meta.page >= Math.max(meta.totalPages, 1)}
+                  disabled={!pagination || pagination.page >= Math.max(pagination.totalPages, 1)}
                   onClick={() => updateSearch({ page: search.page + 1 })}
                 >
                   Next page
