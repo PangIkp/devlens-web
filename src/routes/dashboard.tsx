@@ -9,7 +9,6 @@ import { DashboardHotspotsTable } from "@/components/dashboard/dashboard-hotspot
 import { EChartPanel } from "@/components/charts/echart-panel";
 import { EmptyState, ErrorState } from "@/components/shared/query-state";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
   useDashboardSummaryQuery,
@@ -18,7 +17,14 @@ import {
   usePullRequestMetricsQuery,
   useReviewMetricsQuery,
 } from "@/features/dashboard/dashboard.query";
-import { createLineSeriesData, getDefaultDashboardDateRange, isValidDateRange } from "@/features/dashboard/dashboard.utils";
+import {
+  createLineSeriesData,
+  dashboardRangePresets,
+  getDashboardDateRangeForPreset,
+  getDashboardPresetFromRange,
+  getDefaultDashboardDateRange,
+  isValidDateRange,
+} from "@/features/dashboard/dashboard.utils";
 import { useOrganizationsQuery } from "@/features/organizations/use-organizations-query";
 import { useRepositoriesListQuery } from "@/features/repositories/repositories.query";
 import { formatCount, formatDateRange, formatDurationMinutes, formatPercentage } from "@/lib/formatters";
@@ -77,6 +83,7 @@ function DashboardPage() {
   const repositories = repositoriesQuery.data?.data ?? [];
   const firstRepositoryId = repositories[0]?.id;
   const selectedRepositoryId = search.repositoryId ?? repositories[0]?.id;
+  const selectedPreset = getDashboardPresetFromRange(search.from, search.to) ?? 30;
   const dashboardParams = selectedRepositoryId
     ? {
         repositoryId: selectedRepositoryId,
@@ -198,7 +205,7 @@ function DashboardPage() {
         description="Track repository delivery health across pull requests, reviews, deployments, and hotspot files using metrics already calculated by the backend."
       >
         <div className="space-y-6">
-          <form className="grid gap-3 lg:grid-cols-[1.2fr_1.2fr_1fr_1fr_auto]">
+          <form className="grid gap-3 lg:grid-cols-[1.2fr_1.2fr_1fr_auto]">
             <label className="space-y-2">
               <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Organization</span>
               <Select
@@ -243,23 +250,24 @@ function DashboardPage() {
             </label>
 
             <label className="space-y-2">
-              <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">From</span>
-              <Input
-                type="date"
-                aria-label="From date"
-                value={search.from}
-                onChange={(event) => updateSearch({ from: event.target.value, hotspotPage: 1 })}
-              />
-            </label>
-
-            <label className="space-y-2">
-              <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">To</span>
-              <Input
-                type="date"
-                aria-label="To date"
-                value={search.to}
-                onChange={(event) => updateSearch({ to: event.target.value, hotspotPage: 1 })}
-              />
+              <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Date range</span>
+              <Select
+                aria-label="Date range"
+                value={String(selectedPreset)}
+                onChange={(event) => {
+                  const nextPreset = Number(event.target.value) as (typeof dashboardRangePresets)[number];
+                  const nextRange = getDashboardDateRangeForPreset(nextPreset);
+                  updateSearch({
+                    from: nextRange.from,
+                    to: nextRange.to,
+                    hotspotPage: 1,
+                  });
+                }}
+              >
+                <option value="7">Last 7 Days</option>
+                <option value="30">Last 30 Days</option>
+                <option value="90">Last 90 Days</option>
+              </Select>
             </label>
 
             <div className="flex items-end">
@@ -275,7 +283,7 @@ function DashboardPage() {
                   });
                 }}
               >
-                Reset range
+                Reset
               </Button>
             </div>
           </form>

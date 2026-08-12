@@ -1,6 +1,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderApp } from "@/test/render-app";
+import { getDashboardDateRangeForPreset } from "@/features/dashboard/dashboard.utils";
 
 const organizationId = "org-devlens";
 const repositoryId = "repo-devlens-api";
@@ -338,14 +339,24 @@ describe("dashboard route", () => {
     const fetchStub = createDashboardFetchStub();
     vi.stubGlobal("fetch", fetchStub);
     const user = userEvent.setup();
+    const expectedRange = getDashboardDateRangeForPreset(7);
 
     renderApp("/dashboard");
 
     expect(await screen.findByText("internal/metrics/calculator.go")).toBeInTheDocument();
 
     await user.selectOptions(screen.getByLabelText("Repository"), repositoryIdTwo);
-    await user.type(screen.getByLabelText("From date"), "2026-08-01");
+    await user.selectOptions(screen.getByLabelText("Date range"), "7");
 
-    expect(fetchStub).toHaveBeenCalled();
+    const requestedUrls = fetchStub.mock.calls.map(([input]) => String(input));
+
+    expect(
+      requestedUrls.some(
+        (url) =>
+          url.includes(`/api/v1/repositories/${repositoryIdTwo}/dashboard/summary`) &&
+          url.includes(`from=${expectedRange.from}`) &&
+          url.includes(`to=${expectedRange.to}`),
+      ),
+    ).toBe(true);
   });
 });

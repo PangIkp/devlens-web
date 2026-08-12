@@ -10,7 +10,7 @@ export function DashboardSummaryGrid({
   loading?: boolean;
 }) {
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       <DashboardMetricCard
         label="PR Cycle Time"
         description="Average time from pull request open to completion within the selected range."
@@ -27,12 +27,6 @@ export function DashboardSummaryGrid({
         label="Deployment Frequency"
         description="Average deployment frequency for the selected range."
         value={formatCount(summary?.deploymentFrequency, 2)}
-        loading={loading}
-      />
-      <DashboardMetricCard
-        label="Change Failure Rate"
-        description="Share of deployments that resulted in failures during the selected range."
-        value={formatPercentage(summary?.changeFailureRate)}
         loading={loading}
       />
       <DashboardMetricCard
