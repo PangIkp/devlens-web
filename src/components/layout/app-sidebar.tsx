@@ -6,6 +6,8 @@ const navigationItems = [
   { to: "/", label: "Overview" },
   { to: "/dashboard", label: "Dashboard" },
   { to: "/repositories", label: "Repositories" },
+  { to: "/pull-requests", label: "Pull Requests" },
+  { to: "/insights", label: "Insights" },
   { to: "/settings", label: "Settings" },
 ] as const;
 

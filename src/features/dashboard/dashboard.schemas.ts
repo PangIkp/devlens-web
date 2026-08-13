@@ -66,7 +66,7 @@ export const hotspotFileSchema = z.object({
 
 export const hotspotMetricsBodySchema = z.object({
   data: z.array(hotspotFileSchema),
-  pagination: z.object({
+  meta: z.object({
     page: z.number().int().min(1),
     pageSize: z.number().int().min(1),
     totalItems: z.number().int().min(0),

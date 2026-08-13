@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get current user profile
+         * @description Authentication is deferred in the current milestone, so `userId` is provided as a query parameter.
+         */
+        get: operations["getMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -13,6 +33,23 @@ export interface paths {
         };
         /** Check API health */
         get: operations["getHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/readiness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Check API readiness */
+        get: operations["getReadiness"];
         put?: never;
         post?: never;
         delete?: never;
@@ -217,6 +254,40 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pull-requests/{pullRequestId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get pull request detail */
+        get: operations["getPullRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pull-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List pull requests for a repository */
+        get: operations["listPullRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
         /**
          * Update repository state or metadata
          * @description Use this endpoint to rename, change default branch, deactivate, or archive a repository without deleting historical records.
@@ -275,6 +346,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sync-jobs/{syncJobId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry a failed synchronization job */
+        post: operations["retrySyncJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sync-jobs/{syncJobId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel a pending or running synchronization job */
+        post: operations["cancelSyncJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/github/webhook": {
         parameters: {
             query?: never;
@@ -292,6 +397,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/webhooks/github": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Receive GitHub webhook deliveries */
+        post: operations["handleGitHubWebhookAlias"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/github/webhook-deliveries/{deliveryId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry a failed GitHub webhook delivery */
+        post: operations["retryGitHubWebhookDelivery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/repositories/{repositoryId}/dashboard/summary": {
         parameters: {
             query?: never;
@@ -301,6 +440,74 @@ export interface paths {
         };
         /** Get repository dashboard summary */
         get: operations["getDashboardSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/repositories/{repositoryId}/dashboard/pr-cycle-time": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get dashboard PR cycle time metrics */
+        get: operations["getDashboardPullRequestCycleTime"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/repositories/{repositoryId}/dashboard/review-wait-time": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get dashboard review wait time metrics */
+        get: operations["getDashboardReviewWaitTime"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/repositories/{repositoryId}/dashboard/review-queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get dashboard review queue */
+        get: operations["getDashboardReviewQueue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/repositories/{repositoryId}/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get consolidated repository metrics */
+        get: operations["getRepositoryMetrics"];
         put?: never;
         post?: never;
         delete?: never;
@@ -371,6 +578,91 @@ export interface paths {
         get: operations["getHotspotMetrics"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organizations/{organizationId}/insights": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List generated insights for an organization */
+        get: operations["listInsights"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/insights": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List generated insights across a selected organization */
+        get: operations["listInsightsAlias"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organizations/{organizationId}/insights/{insightKey}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark an insight as reviewed */
+        post: operations["reviewInsight"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organizations/{organizationId}/insights/{insightKey}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dismiss an insight */
+        post: operations["dismissInsight"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organizations/{organizationId}/insights/{insightKey}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reopen an insight */
+        post: operations["reopenInsight"];
         delete?: never;
         options?: never;
         head?: never;
@@ -598,6 +890,99 @@ export interface components {
             data: components["schemas"]["Repository"][];
             pagination: components["schemas"]["PaginationMeta"];
         };
+        UserProfile: {
+            /** Format: uuid */
+            id: string;
+            /** Format: email */
+            email: string;
+            name?: string | null;
+            avatarUrl?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt?: string | null;
+        };
+        MeResponse: {
+            data: components["schemas"]["UserProfile"];
+        };
+        PullRequestReview: {
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            githubReviewId: number;
+            reviewer: string;
+            state: string;
+            /** Format: date-time */
+            reviewRequestedAt?: string | null;
+            /** Format: date-time */
+            firstReviewAt?: string | null;
+            /** Format: date-time */
+            reviewSubmittedAt?: string | null;
+        };
+        PullRequestFileChange: {
+            /** Format: uuid */
+            id: string;
+            filePath: string;
+            additions: number;
+            deletions: number;
+            commitCount: number;
+        };
+        PullRequestRepositoryRef: {
+            /** Format: uuid */
+            id: string;
+            fullName: string;
+        };
+        PullRequestDetail: {
+            /** Format: uuid */
+            id: string;
+            repository: components["schemas"]["PullRequestRepositoryRef"];
+            /** Format: int64 */
+            githubPrId: number;
+            number: number;
+            title: string;
+            author: string;
+            state: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            mergedAt?: string | null;
+            /** Format: date-time */
+            closedAt?: string | null;
+            additions: number;
+            deletions: number;
+            filesChanged: number;
+            isDraft: boolean;
+            reviews: components["schemas"]["PullRequestReview"][];
+            fileChanges: components["schemas"]["PullRequestFileChange"][];
+        };
+        PullRequestResponse: {
+            data: components["schemas"]["PullRequestDetail"];
+        };
+        PullRequestListItem: {
+            /** Format: uuid */
+            id: string;
+            repository: components["schemas"]["PullRequestRepositoryRef"];
+            /** Format: int64 */
+            githubPrId: number;
+            number: number;
+            title: string;
+            author: string;
+            state: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            mergedAt?: string | null;
+            /** Format: date-time */
+            closedAt?: string | null;
+            additions: number;
+            deletions: number;
+            filesChanged: number;
+            isDraft: boolean;
+        };
+        PullRequestListResponse: {
+            data: components["schemas"]["PullRequestListItem"][];
+            pagination: components["schemas"]["PaginationMeta"];
+        };
         CreateSyncRequest: {
             /**
              * @default incremental
@@ -613,7 +998,7 @@ export interface components {
             /** Format: uuid */
             repositoryId: string;
             /** @enum {string} */
-            status: "pending" | "running" | "completed" | "failed";
+            status: "pending" | "running" | "completed" | "failed" | "canceled";
             progress: number;
             /** Format: uuid */
             triggeredBy?: string | null;
@@ -639,6 +1024,8 @@ export interface components {
             eventType: string;
             duplicate: boolean;
             enqueued: boolean;
+            /** @enum {string} */
+            processingStatus: "received" | "enqueued" | "processed" | "ignored" | "failed";
             /** Format: uuid */
             syncJobId?: string | null;
             action?: string | null;
@@ -725,6 +1112,93 @@ export interface components {
             data: components["schemas"]["HotspotFile"][];
             meta: components["schemas"]["PaginationMeta"];
         };
+        RepositoryMetricsPayload: {
+            /** Format: uuid */
+            repositoryId: string;
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            interval: string;
+            summary: components["schemas"]["DashboardSummary"];
+            pullRequests: components["schemas"]["PullRequestMetrics"];
+            reviews: components["schemas"]["ReviewMetrics"];
+            deployments: components["schemas"]["DeploymentMetrics"];
+            hotspots: components["schemas"]["HotspotFile"][];
+        };
+        RepositoryMetricsResponse: {
+            data: components["schemas"]["RepositoryMetricsPayload"];
+        };
+        ReviewQueueItem: {
+            /** Format: uuid */
+            pullRequestId: string;
+            number: number;
+            title: string;
+            author: string;
+            /** Format: date-time */
+            reviewRequestedAt?: string | null;
+            waitingMinutes: number;
+        };
+        ReviewQueueResponse: {
+            data: components["schemas"]["ReviewQueueItem"][];
+            meta: components["schemas"]["PaginationMeta"];
+        };
+        ReviewInsightRequest: {
+            /** Format: uuid */
+            reviewedBy?: string;
+        };
+        Insight: {
+            insightKey: string;
+            /** @enum {string} */
+            insightType: "bottleneck_detection" | "large_pr_detection" | "slow_review_detection" | "hotspot_detection" | "deployment_failure_trend" | "review_concentration";
+            /** @enum {string} */
+            status: "open" | "reviewed" | "dismissed";
+            /** @enum {string} */
+            severity: "low" | "medium" | "high" | "critical";
+            title: string;
+            summary: string;
+            /** Format: uuid */
+            organizationId: string;
+            /** Format: uuid */
+            repositoryId?: string | null;
+            repositoryName?: string | null;
+            /** Format: date-time */
+            detectedAt: string;
+            evidence?: {
+                [key: string]: unknown;
+            };
+            /** Format: uuid */
+            reviewedBy?: string | null;
+            /** Format: date-time */
+            reviewedAt?: string | null;
+            /** Format: date-time */
+            dismissedAt?: string | null;
+            /** Format: date-time */
+            reopenedAt?: string | null;
+        };
+        InsightListResponse: {
+            data: components["schemas"]["Insight"][];
+            pagination: components["schemas"]["PaginationMeta"];
+        };
+        InsightStatusPayload: {
+            insightKey: string;
+            insightType: string;
+            /** @enum {string} */
+            status: "open" | "reviewed" | "dismissed";
+            /** Format: uuid */
+            reviewedBy?: string | null;
+            /** Format: date-time */
+            reviewedAt?: string | null;
+            /** Format: date-time */
+            dismissedAt?: string | null;
+            /** Format: date-time */
+            reopenedAt?: string | null;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        InsightStatusResponse: {
+            data: components["schemas"]["InsightStatusPayload"];
+        };
         ErrorDetail: {
             /** @example REPOSITORY_NOT_FOUND */
             code: string;
@@ -797,7 +1271,16 @@ export interface components {
     };
     parameters: {
         OrganizationId: string;
+        OrganizationIdQuery: string;
         RepositoryId: string;
+        PullRequestId: string;
+        UserId: string;
+        RepositoryIdQuery: string;
+        PullRequestStatus: "open" | "closed" | "merged";
+        PullRequestSortBy: "createdAt" | "number";
+        InsightKey: string;
+        InsightType: "bottleneck_detection" | "large_pr_detection" | "slow_review_detection" | "hotspot_detection" | "deployment_failure_trend" | "review_concentration";
+        InsightStatus: "open" | "reviewed" | "dismissed";
         MemberId: string;
         SyncJobId: string;
         Page: number;
@@ -820,6 +1303,30 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getMe: {
+        parameters: {
+            query: {
+                userId: components["parameters"]["UserId"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current user profile */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     getHealth: {
         parameters: {
             query?: never;
@@ -831,6 +1338,44 @@ export interface operations {
         responses: {
             /** @description API is healthy */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+            /** @description One or more dependencies are unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    getReadiness: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Service and dependencies are ready */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+            /** @description One or more required dependencies are unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1293,9 +1838,62 @@ export interface operations {
                     "application/json": components["schemas"]["RepositoryResponse"];
                 };
             };
-            400: components["responses"]["ValidationError"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getPullRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pullRequestId: components["parameters"]["PullRequestId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pull request detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PullRequestResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listPullRequests: {
+        parameters: {
+            query?: {
+                repositoryId?: components["parameters"]["RepositoryIdQuery"];
+                page?: components["parameters"]["Page"];
+                pageSize?: components["parameters"]["PageSize"];
+                search?: components["parameters"]["Search"];
+                status?: components["parameters"]["PullRequestStatus"];
+                sortBy?: components["parameters"]["PullRequestSortBy"];
+                sortOrder?: components["parameters"]["SortOrder"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pull request list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PullRequestListResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -1331,7 +1929,9 @@ export interface operations {
     createRepositorySync: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
             path: {
                 repositoryId: components["parameters"]["RepositoryId"];
             };
@@ -1413,6 +2013,58 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    retrySyncJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                syncJobId: components["parameters"]["SyncJobId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sync job re-queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncJobResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    cancelSyncJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                syncJobId: components["parameters"]["SyncJobId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sync job canceled */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncJobResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
     handleGitHubWebhook: {
         parameters: {
             query?: never;
@@ -1445,6 +2097,62 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
         };
     };
+    handleGitHubWebhookAlias: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-GitHub-Event": string;
+                "X-GitHub-Delivery": string;
+                "X-Hub-Signature-256": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Webhook accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubWebhookResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    retryGitHubWebhookDelivery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deliveryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Webhook delivery retried */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubWebhookResponse"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
     getDashboardSummary: {
         parameters: {
             query: {
@@ -1468,6 +2176,136 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DashboardSummaryResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getDashboardPullRequestCycleTime: {
+        parameters: {
+            query: {
+                /** @description Inclusive start date */
+                from: components["parameters"]["DateFrom"];
+                /** @description Inclusive end date */
+                to: components["parameters"]["DateTo"];
+                interval?: components["parameters"]["Interval"];
+            };
+            header?: never;
+            path: {
+                repositoryId: components["parameters"]["RepositoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pull request cycle time metrics */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PullRequestMetricsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getDashboardReviewWaitTime: {
+        parameters: {
+            query: {
+                /** @description Inclusive start date */
+                from: components["parameters"]["DateFrom"];
+                /** @description Inclusive end date */
+                to: components["parameters"]["DateTo"];
+                interval?: components["parameters"]["Interval"];
+            };
+            header?: never;
+            path: {
+                repositoryId: components["parameters"]["RepositoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Review wait time metrics */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewMetricsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getDashboardReviewQueue: {
+        parameters: {
+            query: {
+                /** @description Inclusive start date */
+                from: components["parameters"]["DateFrom"];
+                /** @description Inclusive end date */
+                to: components["parameters"]["DateTo"];
+                page?: components["parameters"]["Page"];
+                pageSize?: components["parameters"]["PageSize"];
+            };
+            header?: never;
+            path: {
+                repositoryId: components["parameters"]["RepositoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Review queue items */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewQueueResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getRepositoryMetrics: {
+        parameters: {
+            query: {
+                /** @description Inclusive start date */
+                from: components["parameters"]["DateFrom"];
+                /** @description Inclusive end date */
+                to: components["parameters"]["DateTo"];
+                interval?: components["parameters"]["Interval"];
+                environment?: components["parameters"]["Environment"];
+            };
+            header?: never;
+            path: {
+                repositoryId: components["parameters"]["RepositoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Consolidated repository metrics */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryMetricsResponse"];
                 };
             };
             401: components["responses"]["Unauthorized"];
@@ -1599,6 +2437,162 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HotspotMetricsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    listInsights: {
+        parameters: {
+            query: {
+                repositoryId?: components["parameters"]["RepositoryIdQuery"];
+                type?: components["parameters"]["InsightType"];
+                status?: components["parameters"]["InsightStatus"];
+                /** @description Inclusive start date */
+                from: components["parameters"]["DateFrom"];
+                /** @description Inclusive end date */
+                to: components["parameters"]["DateTo"];
+                page?: components["parameters"]["Page"];
+                pageSize?: components["parameters"]["PageSize"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Insight list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightListResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    listInsightsAlias: {
+        parameters: {
+            query: {
+                organizationId: components["parameters"]["OrganizationIdQuery"];
+                repositoryId?: components["parameters"]["RepositoryIdQuery"];
+                type?: components["parameters"]["InsightType"];
+                status?: components["parameters"]["InsightStatus"];
+                /** @description Inclusive start date */
+                from: components["parameters"]["DateFrom"];
+                /** @description Inclusive end date */
+                to: components["parameters"]["DateTo"];
+                page?: components["parameters"]["Page"];
+                pageSize?: components["parameters"]["PageSize"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Insight list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightListResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    reviewInsight: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                insightKey: components["parameters"]["InsightKey"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ReviewInsightRequest"];
+            };
+        };
+        responses: {
+            /** @description Insight status updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightStatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    dismissInsight: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                insightKey: components["parameters"]["InsightKey"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Insight status updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightStatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    reopenInsight: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                insightKey: components["parameters"]["InsightKey"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Insight status updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightStatusResponse"];
                 };
             };
             401: components["responses"]["Unauthorized"];

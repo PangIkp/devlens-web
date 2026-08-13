@@ -169,7 +169,7 @@ function createDashboardFetchStub(options?: {
                 commitCount: 8,
               },
             ],
-          pagination:
+          meta:
             options?.hotspotMeta ?? {
               page: Number(url.searchParams.get("page") ?? "1"),
               pageSize: 10,
@@ -267,7 +267,7 @@ describe("dashboard route", () => {
 
         if (url.pathname.includes("/metrics/hotspots")) {
           return Promise.resolve(
-            jsonResponse(200, { data: [], pagination: { page: 1, pageSize: 10, totalItems: 0, totalPages: 0 } }),
+            jsonResponse(200, { data: [], meta: { page: 1, pageSize: 10, totalItems: 0, totalPages: 0 } }),
           );
         }
 

@@ -12,9 +12,11 @@ describe("HealthStatusCard", () => {
           Promise.resolve(
             JSON.stringify({
               status: "ok",
-              service: "devlens-api",
-              version: "1.0.0",
               timestamp: "2026-08-11T00:00:00Z",
+              dependencies: {
+                postgres: { status: "ok" },
+                clickhouse: { status: "ok" },
+              },
             }),
           ),
       }),
@@ -28,7 +30,8 @@ describe("HealthStatusCard", () => {
       </QueryClientProvider>,
     );
 
-    expect(await screen.findByText("devlens-api")).toBeInTheDocument();
-    expect(screen.getByText("ok")).toBeInTheDocument();
+    expect(await screen.findByText("Status")).toBeInTheDocument();
+    expect(screen.getByText("Postgres")).toBeInTheDocument();
+    expect(screen.getByText("ClickHouse")).toBeInTheDocument();
   });
 });

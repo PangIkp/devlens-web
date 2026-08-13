@@ -3,8 +3,16 @@ import { z } from "zod";
 const healthPayloadSchema = z.object({
   status: z.string(),
   timestamp: z.string(),
-  service: z.string().optional(),
-  version: z.string().optional(),
+  dependencies: z.object({
+    postgres: z.object({
+      status: z.string(),
+      message: z.string().optional(),
+    }),
+    clickhouse: z.object({
+      status: z.string(),
+      message: z.string().optional(),
+    }),
+  }),
 });
 
 export const healthResponseSchema = z

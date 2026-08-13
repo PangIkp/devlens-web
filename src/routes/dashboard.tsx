@@ -504,7 +504,7 @@ function DashboardPage() {
                   </div>
                   {hotspotsQuery.data ? (
                     <p className="text-sm text-muted-foreground">
-                      Page {hotspotsQuery.data.pagination.page} / {Math.max(hotspotsQuery.data.pagination.totalPages, 1)}
+                      Page {hotspotsQuery.data.meta.page} / {Math.max(hotspotsQuery.data.meta.totalPages, 1)}
                     </p>
                   ) : null}
                 </div>
@@ -541,7 +541,7 @@ function DashboardPage() {
                           type="button"
                           variant="outline"
                           disabled={
-                            hotspotsQuery.data.pagination.page >= Math.max(hotspotsQuery.data.pagination.totalPages, 1)
+                            hotspotsQuery.data.meta.page >= Math.max(hotspotsQuery.data.meta.totalPages, 1)
                           }
                           onClick={() => updateSearch({ hotspotPage: search.hotspotPage + 1 })}
                         >
