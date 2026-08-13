@@ -8,7 +8,7 @@ export function AuthBootstrap() {
   const meQuery = useMeQuery(Boolean(session));
 
   useEffect(() => {
-    if (session && meQuery.data) {
+    if (session && meQuery.data && session.user !== meQuery.data.data) {
       setSession({
         ...session,
         user: meQuery.data.data,
