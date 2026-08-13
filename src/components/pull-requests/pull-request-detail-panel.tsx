@@ -1,6 +1,7 @@
-import type { PullRequestDetail } from "@/features/pull-requests/pull-requests.schemas";
+import type { PullRequestDetail, PullRequestRiskIndicator } from "@/features/pull-requests/pull-requests.schemas";
 import { Card } from "@/components/ui/card";
 import { StatusPill } from "@/components/shared/status-pill";
+import { PullRequestTimeline } from "@/components/pull-requests/pull-request-timeline";
 import { formatDateTime } from "@/components/repositories/repository-utils";
 
 function getPullRequestTone(state: string) {
@@ -15,6 +16,18 @@ function getPullRequestTone(state: string) {
   return "info" as const;
 }
 
+function getRiskTone(level: PullRequestRiskIndicator["level"]) {
+  if (level === "high") {
+    return "danger" as const;
+  }
+
+  if (level === "medium") {
+    return "warning" as const;
+  }
+
+  return "success" as const;
+}
+
 export function PullRequestDetailPanel({ pullRequest }: { pullRequest: PullRequestDetail }) {
   return (
     <div className="space-y-6">
@@ -22,6 +35,7 @@ export function PullRequestDetailPanel({ pullRequest }: { pullRequest: PullReque
         <div className="flex flex-wrap items-center gap-2">
           <StatusPill label={pullRequest.state} tone={getPullRequestTone(pullRequest.state)} />
           {pullRequest.isDraft ? <StatusPill label="draft" /> : null}
+          <StatusPill label={`${pullRequest.riskIndicator.level} risk`} tone={getRiskTone(pullRequest.riskIndicator.level)} />
           <span className="text-sm text-muted-foreground">
             {pullRequest.repository.fullName} • #{pullRequest.number}
           </span>
@@ -32,6 +46,13 @@ export function PullRequestDetailPanel({ pullRequest }: { pullRequest: PullReque
             Opened by {pullRequest.author} on {formatDateTime(pullRequest.createdAt)}
           </p>
         </div>
+        {pullRequest.riskIndicator.reasons.length > 0 ? (
+          <ul className="list-inside list-disc space-y-1 text-sm text-muted-foreground">
+            {pullRequest.riskIndicator.reasons.map((reason) => (
+              <li key={reason}>{reason}</li>
+            ))}
+          </ul>
+        ) : null}
         <div className="grid gap-4 md:grid-cols-3">
           <div className="rounded-xl border border-border/70 bg-background/70 p-4">
             <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Files changed</p>
@@ -46,6 +67,11 @@ export function PullRequestDetailPanel({ pullRequest }: { pullRequest: PullReque
             <p className="mt-2 text-2xl font-semibold">-{pullRequest.deletions}</p>
           </div>
         </div>
+      </Card>
+
+      <Card className="space-y-4">
+        <h3 className="text-lg font-semibold">Timeline</h3>
+        <PullRequestTimeline events={pullRequest.timeline} />
       </Card>
 
       <Card className="space-y-4">

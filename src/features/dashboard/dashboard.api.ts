@@ -5,6 +5,8 @@ import {
   hotspotMetricsBodySchema,
   pullRequestMetricsResponseSchema,
   reviewMetricsResponseSchema,
+  reviewQueueResponseSchema,
+  workloadDistributionResponseSchema,
 } from "@/features/dashboard/dashboard.schemas";
 import { apiRequest } from "@/lib/api-client";
 
@@ -18,6 +20,10 @@ type DeploymentResponse =
   paths["/repositories/{repositoryId}/metrics/deployments"]["get"]["responses"][200]["content"]["application/json"];
 type HotspotResponse =
   paths["/repositories/{repositoryId}/metrics/hotspots"]["get"]["responses"][200]["content"]["application/json"];
+type ReviewQueueResponse =
+  paths["/repositories/{repositoryId}/dashboard/review-queue"]["get"]["responses"][200]["content"]["application/json"];
+type WorkloadDistributionApiResponse =
+  paths["/repositories/{repositoryId}/metrics/workload-distribution"]["get"]["responses"][200]["content"]["application/json"];
 
 export type DashboardRange = {
   from: operations["getDashboardSummary"]["parameters"]["query"]["from"];
@@ -118,4 +124,37 @@ export async function getHotspotMetrics({
   );
 
   return hotspotMetricsBodySchema.parse(response);
+}
+
+export async function getReviewQueue({
+  repositoryId,
+  from,
+  to,
+  page = 1,
+  pageSize = 10,
+}: RangeWithRepositoryId & {
+  page?: operations["getDashboardReviewQueue"]["parameters"]["query"]["page"];
+  pageSize?: operations["getDashboardReviewQueue"]["parameters"]["query"]["pageSize"];
+}) {
+  const response = await apiRequest<ReviewQueueResponse>(
+    `/repositories/${repositoryId}/dashboard/review-queue`,
+    {
+      method: "GET",
+    },
+    { from, to, page, pageSize },
+  );
+
+  return reviewQueueResponseSchema.parse(response);
+}
+
+export async function getWorkloadDistribution({ repositoryId, from, to }: RangeWithRepositoryId) {
+  const response = await apiRequest<WorkloadDistributionApiResponse>(
+    `/repositories/${repositoryId}/metrics/workload-distribution`,
+    {
+      method: "GET",
+    },
+    { from, to },
+  );
+
+  return workloadDistributionResponseSchema.parse(response);
 }

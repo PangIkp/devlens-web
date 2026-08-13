@@ -4,6 +4,60 @@
  */
 
 export interface paths {
+    "/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a user session
+         * @description Creates or updates a user record by email and returns an access token plus refresh token for the new session.
+         */
+        post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh an existing session */
+        post: operations["refreshSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke the current session */
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me": {
         parameters: {
             query?: never;
@@ -13,7 +67,7 @@ export interface paths {
         };
         /**
          * Get current user profile
-         * @description Authentication is deferred in the current milestone, so `userId` is provided as a query parameter.
+         * @description Returns the currently authenticated user profile.
          */
         get: operations["getMe"];
         put?: never;
@@ -31,7 +85,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Check API health */
+        /** Check API liveness */
         get: operations["getHealth"];
         put?: never;
         post?: never;
@@ -68,7 +122,10 @@ export interface paths {
         /** Get organizations accessible by current user */
         get: operations["listOrganizations"];
         put?: never;
-        /** Create organization */
+        /**
+         * Create organization
+         * @description Creates an organization and assigns the authenticated user as the initial owner.
+         */
         post: operations["createOrganization"];
         delete?: never;
         options?: never;
@@ -105,10 +162,7 @@ export interface paths {
         /** Get organization members */
         get: operations["listOrganizationMembers"];
         put?: never;
-        /**
-         * Add organization member
-         * @description Authentication is deferred in the current milestone, so `userId` is provided in the request body.
-         */
+        /** Add organization member */
         post: operations["createOrganizationMember"];
         delete?: never;
         options?: never;
@@ -254,7 +308,11 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update repository state or metadata
+         * @description Use this endpoint to rename, change default branch, deactivate, or archive a repository without deleting historical records.
+         */
+        patch: operations["updateRepository"];
         trace?: never;
     };
     "/pull-requests/{pullRequestId}": {
@@ -288,11 +346,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /**
-         * Update repository state or metadata
-         * @description Use this endpoint to rename, change default branch, deactivate, or archive a repository without deleting historical records.
-         */
-        patch: operations["updateRepository"];
+        patch?: never;
         trace?: never;
     };
     "/repositories/{repositoryId}/sync": {
@@ -567,6 +621,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/repositories/{repositoryId}/metrics/workload-distribution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get contributor and reviewer workload distribution */
+        get: operations["getWorkloadDistribution"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/repositories/{repositoryId}/metrics/hotspots": {
         parameters: {
             query?: never;
@@ -673,7 +744,7 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        HealthResponse: {
+        LivenessHealthResponse: {
             /** @example ok */
             status: string;
             /** Format: date-time */
@@ -681,6 +752,17 @@ export interface components {
             dependencies: {
                 postgres: components["schemas"]["DependencyStatus"];
                 clickhouse: components["schemas"]["DependencyStatus"];
+            };
+        };
+        ReadinessHealthResponse: {
+            /** @example ok */
+            status: string;
+            /** Format: date-time */
+            timestamp: string;
+            dependencies: {
+                postgres: components["schemas"]["DependencyStatus"];
+                clickhouse: components["schemas"]["DependencyStatus"];
+                nats: components["schemas"]["DependencyStatus"];
             };
         };
         DependencyStatus: {
@@ -905,6 +987,28 @@ export interface components {
         MeResponse: {
             data: components["schemas"]["UserProfile"];
         };
+        LoginRequest: {
+            /** Format: email */
+            email: string;
+            name?: string | null;
+        };
+        RefreshSessionRequest: {
+            refreshToken: string;
+        };
+        SessionPayload: {
+            accessToken: string;
+            refreshToken: string;
+            /** @example Bearer */
+            tokenType: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: date-time */
+            refreshExpiresAt: string;
+            user: components["schemas"]["UserProfile"];
+        };
+        SessionResponse: {
+            data: components["schemas"]["SessionPayload"];
+        };
         PullRequestReview: {
             /** Format: uuid */
             id: string;
@@ -926,6 +1030,20 @@ export interface components {
             additions: number;
             deletions: number;
             commitCount: number;
+        };
+        PullRequestTimelineEvent: {
+            /** @enum {string} */
+            type: "created" | "review_requested" | "review_started" | "review_submitted" | "merged" | "closed";
+            label: string;
+            actor?: string | null;
+            state?: string | null;
+            /** Format: date-time */
+            occurredAt: string;
+        };
+        PullRequestRiskIndicator: {
+            /** @enum {string} */
+            level: "low" | "medium" | "high";
+            reasons: string[];
         };
         PullRequestRepositoryRef: {
             /** Format: uuid */
@@ -954,6 +1072,8 @@ export interface components {
             isDraft: boolean;
             reviews: components["schemas"]["PullRequestReview"][];
             fileChanges: components["schemas"]["PullRequestFileChange"][];
+            timeline: components["schemas"]["PullRequestTimelineEvent"][];
+            riskIndicator: components["schemas"]["PullRequestRiskIndicator"];
         };
         PullRequestResponse: {
             data: components["schemas"]["PullRequestDetail"];
@@ -1036,6 +1156,9 @@ export interface components {
             data: components["schemas"]["GitHubWebhookDelivery"];
         };
         DashboardSummary: {
+            metricVersion: number;
+            /** @enum {string} */
+            dayType: "calendar" | "business";
             /** Format: uuid */
             repositoryId: string;
             /** Format: date */
@@ -1063,6 +1186,9 @@ export interface components {
             value: number;
         };
         PullRequestMetrics: {
+            metricVersion: number;
+            /** @enum {string} */
+            dayType: "calendar" | "business";
             /** Format: double */
             averageCycleTimeMinutes: number;
             /** Format: double */
@@ -1077,6 +1203,9 @@ export interface components {
             data: components["schemas"]["PullRequestMetrics"];
         };
         ReviewMetrics: {
+            metricVersion: number;
+            /** @enum {string} */
+            dayType: "calendar" | "business";
             /** Format: double */
             averageWaitMinutes: number;
             /** Format: double */
@@ -1089,6 +1218,9 @@ export interface components {
             data: components["schemas"]["ReviewMetrics"];
         };
         DeploymentMetrics: {
+            metricVersion: number;
+            /** @enum {string} */
+            dayType: "calendar" | "business";
             deploymentCount: number;
             /** Format: double */
             deploymentFrequency: number;
@@ -1098,6 +1230,41 @@ export interface components {
         };
         DeploymentMetricsResponse: {
             data: components["schemas"]["DeploymentMetrics"];
+        };
+        ContributorDistributionItem: {
+            author: string;
+            pullRequestCount: number;
+            /** Format: double */
+            share: number;
+        };
+        ReviewerDistributionItem: {
+            reviewer: string;
+            reviewCount: number;
+            reviewedPullRequestCount: number;
+            /** Format: double */
+            share: number;
+        };
+        WorkloadDistributionSummary: {
+            /** Format: uuid */
+            repositoryId: string;
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            totalPullRequests: number;
+            totalReviews: number;
+            /** Format: double */
+            topContributorShare: number;
+            /** Format: double */
+            topReviewerShare: number;
+        };
+        WorkloadDistribution: {
+            summary: components["schemas"]["WorkloadDistributionSummary"];
+            contributors: components["schemas"]["ContributorDistributionItem"][];
+            reviewers: components["schemas"]["ReviewerDistributionItem"][];
+        };
+        WorkloadDistributionResponse: {
+            data: components["schemas"]["WorkloadDistribution"];
         };
         HotspotFile: {
             /** @example internal/metrics/calculator.go */
@@ -1113,6 +1280,9 @@ export interface components {
             meta: components["schemas"]["PaginationMeta"];
         };
         RepositoryMetricsPayload: {
+            metricVersion: number;
+            /** @enum {string} */
+            dayType: "calendar" | "business";
             /** Format: uuid */
             repositoryId: string;
             /** Format: date */
@@ -1226,6 +1396,7 @@ export interface components {
         /** @description Authentication is required or token is invalid */
         Unauthorized: {
             headers: {
+                "X-Trace-Id": components["headers"]["TraceID"];
                 [name: string]: unknown;
             };
             content: {
@@ -1235,6 +1406,7 @@ export interface components {
         /** @description User does not have permission to access the resource */
         Forbidden: {
             headers: {
+                "X-Trace-Id": components["headers"]["TraceID"];
                 [name: string]: unknown;
             };
             content: {
@@ -1244,6 +1416,7 @@ export interface components {
         /** @description Requested resource was not found */
         NotFound: {
             headers: {
+                "X-Trace-Id": components["headers"]["TraceID"];
                 [name: string]: unknown;
             };
             content: {
@@ -1253,6 +1426,7 @@ export interface components {
         /** @description Request conflicts with current resource state */
         Conflict: {
             headers: {
+                "X-Trace-Id": components["headers"]["TraceID"];
                 [name: string]: unknown;
             };
             content: {
@@ -1262,10 +1436,23 @@ export interface components {
         /** @description Request validation failed */
         ValidationError: {
             headers: {
+                "X-Trace-Id": components["headers"]["TraceID"];
                 [name: string]: unknown;
             };
             content: {
                 "application/json": components["schemas"]["ValidationErrorResponse"];
+            };
+        };
+        /** @description Request rate limit exceeded */
+        TooManyRequests: {
+            headers: {
+                /** @description Number of seconds to wait before retrying the request. */
+                "Retry-After"?: number;
+                "X-Trace-Id": components["headers"]["TraceID"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
             };
         };
     };
@@ -1295,19 +1482,92 @@ export interface components {
         /** @description Inclusive end date */
         DateTo: string;
         Interval: "day" | "week" | "month";
+        /** @description Controls how per-day normalized metrics such as deployment frequency are divided across the selected range. Duration metrics still use elapsed calendar time. When omitted, the backend uses its configured metric rule default. */
+        DayType: "calendar" | "business";
         Environment: string;
     };
     requestBodies: never;
-    headers: never;
+    headers: {
+        /** @description Request trace identifier for correlating logs and responses. */
+        TraceID: string;
+    };
     pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Session created successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+        };
+    };
+    refreshSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefreshSessionRequest"];
+            };
+        };
+        responses: {
+            /** @description Session refreshed successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session revoked successfully */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
     getMe: {
         parameters: {
-            query: {
-                userId: components["parameters"]["UserId"];
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -1323,7 +1583,7 @@ export interface operations {
                     "application/json": components["schemas"]["MeResponse"];
                 };
             };
-            400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -1336,22 +1596,22 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description API is healthy */
+            /** @description API process is alive and core stores are reachable */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HealthResponse"];
+                    "application/json": components["schemas"]["LivenessHealthResponse"];
                 };
             };
-            /** @description One or more dependencies are unavailable */
+            /** @description Core stores required for liveness are unavailable */
             503: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HealthResponse"];
+                    "application/json": components["schemas"]["LivenessHealthResponse"];
                 };
             };
         };
@@ -1371,7 +1631,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HealthResponse"];
+                    "application/json": components["schemas"]["ReadinessHealthResponse"];
                 };
             };
             /** @description One or more required dependencies are unavailable */
@@ -1380,7 +1640,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HealthResponse"];
+                    "application/json": components["schemas"]["ReadinessHealthResponse"];
                 };
             };
         };
@@ -1407,6 +1667,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
         };
     };
     createOrganization: {
@@ -1432,6 +1693,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
             409: components["responses"]["Conflict"];
         };
     };
@@ -1456,6 +1718,8 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -1478,6 +1742,8 @@ export interface operations {
                 content?: never;
             };
             400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -1506,6 +1772,8 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
@@ -1531,6 +1799,8 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -1559,6 +1829,8 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
@@ -1583,6 +1855,8 @@ export interface operations {
                 content?: never;
             };
             400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
@@ -1613,6 +1887,8 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -1736,6 +2012,7 @@ export interface operations {
         parameters: {
             query: {
                 installation_id: number;
+                state: string;
                 setup_action?: string;
             };
             header?: never;
@@ -1843,6 +2120,35 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    updateRepository: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: components["parameters"]["RepositoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateRepositoryRequest"];
+            };
+        };
+        responses: {
+            /** @description Repository updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
     getPullRequest: {
         parameters: {
             query?: never;
@@ -1895,35 +2201,6 @@ export interface operations {
             };
             400: components["responses"]["ValidationError"];
             404: components["responses"]["NotFound"];
-        };
-    };
-    updateRepository: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                repositoryId: components["parameters"]["RepositoryId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateRepositoryRequest"];
-            };
-        };
-        responses: {
-            /** @description Repository updated */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RepositoryResponse"];
-                };
-            };
-            400: components["responses"]["ValidationError"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
         };
     };
     createRepositorySync: {
@@ -2149,6 +2426,8 @@ export interface operations {
                     "application/json": components["schemas"]["GitHubWebhookResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
@@ -2160,6 +2439,8 @@ export interface operations {
                 from: components["parameters"]["DateFrom"];
                 /** @description Inclusive end date */
                 to: components["parameters"]["DateTo"];
+                /** @description Controls how per-day normalized metrics such as deployment frequency are divided across the selected range. Duration metrics still use elapsed calendar time. When omitted, the backend uses its configured metric rule default. */
+                dayType?: components["parameters"]["DayType"];
             };
             header?: never;
             path: {
@@ -2192,6 +2473,8 @@ export interface operations {
                 /** @description Inclusive end date */
                 to: components["parameters"]["DateTo"];
                 interval?: components["parameters"]["Interval"];
+                /** @description Controls how per-day normalized metrics such as deployment frequency are divided across the selected range. Duration metrics still use elapsed calendar time. When omitted, the backend uses its configured metric rule default. */
+                dayType?: components["parameters"]["DayType"];
             };
             header?: never;
             path: {
@@ -2224,6 +2507,8 @@ export interface operations {
                 /** @description Inclusive end date */
                 to: components["parameters"]["DateTo"];
                 interval?: components["parameters"]["Interval"];
+                /** @description Controls how per-day normalized metrics such as deployment frequency are divided across the selected range. Duration metrics still use elapsed calendar time. When omitted, the backend uses its configured metric rule default. */
+                dayType?: components["parameters"]["DayType"];
             };
             header?: never;
             path: {
@@ -2289,6 +2574,8 @@ export interface operations {
                 /** @description Inclusive end date */
                 to: components["parameters"]["DateTo"];
                 interval?: components["parameters"]["Interval"];
+                /** @description Controls how per-day normalized metrics such as deployment frequency are divided across the selected range. Duration metrics still use elapsed calendar time. When omitted, the backend uses its configured metric rule default. */
+                dayType?: components["parameters"]["DayType"];
                 environment?: components["parameters"]["Environment"];
             };
             header?: never;
@@ -2322,6 +2609,8 @@ export interface operations {
                 /** @description Inclusive end date */
                 to: components["parameters"]["DateTo"];
                 interval?: components["parameters"]["Interval"];
+                /** @description Controls how per-day normalized metrics such as deployment frequency are divided across the selected range. Duration metrics still use elapsed calendar time. When omitted, the backend uses its configured metric rule default. */
+                dayType?: components["parameters"]["DayType"];
             };
             header?: never;
             path: {
@@ -2354,6 +2643,8 @@ export interface operations {
                 /** @description Inclusive end date */
                 to: components["parameters"]["DateTo"];
                 interval?: components["parameters"]["Interval"];
+                /** @description Controls how per-day normalized metrics such as deployment frequency are divided across the selected range. Duration metrics still use elapsed calendar time. When omitted, the backend uses its configured metric rule default. */
+                dayType?: components["parameters"]["DayType"];
             };
             header?: never;
             path: {
@@ -2386,6 +2677,8 @@ export interface operations {
                 /** @description Inclusive end date */
                 to: components["parameters"]["DateTo"];
                 interval?: components["parameters"]["Interval"];
+                /** @description Controls how per-day normalized metrics such as deployment frequency are divided across the selected range. Duration metrics still use elapsed calendar time. When omitted, the backend uses its configured metric rule default. */
+                dayType?: components["parameters"]["DayType"];
                 environment?: components["parameters"]["Environment"];
             };
             header?: never;
@@ -2403,6 +2696,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeploymentMetricsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getWorkloadDistribution: {
+        parameters: {
+            query: {
+                /** @description Inclusive start date */
+                from: components["parameters"]["DateFrom"];
+                /** @description Inclusive end date */
+                to: components["parameters"]["DateTo"];
+            };
+            header?: never;
+            path: {
+                repositoryId: components["parameters"]["RepositoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Workload distribution metrics */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkloadDistributionResponse"];
                 };
             };
             401: components["responses"]["Unauthorized"];

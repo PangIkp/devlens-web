@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { operations } from "@/api/generated/schema";
 import { dismissInsight, listInsights, reopenInsight, reviewInsight } from "@/features/insights/insights.api";
 
 export const insightsKeys = {
@@ -9,9 +10,9 @@ export const insightsKeys = {
 export function useInsightsQuery(
   params: {
     organizationId: string;
-    repositoryId?: string;
-    type?: "bottleneck_detection" | "large_pr_detection" | "slow_review_detection" | "hotspot_detection" | "deployment_failure_trend" | "review_concentration";
-    status?: "open" | "reviewed" | "dismissed";
+    repositoryId?: operations["listInsights"]["parameters"]["query"]["repositoryId"];
+    type?: operations["listInsights"]["parameters"]["query"]["type"];
+    status?: operations["listInsights"]["parameters"]["query"]["status"];
     from: string;
     to: string;
     page: number;

@@ -1,28 +1,28 @@
 import type { operations, paths } from "@/api/generated/schema";
-import { insightListResponseSchema, insightStatusResponseSchema } from "@/features/insights/insights.schemas";
+import { insightStatusResponseSchema, parseInsightListResponse } from "@/features/insights/insights.schemas";
 import { apiRequest } from "@/lib/api-client";
 
-type InsightListResponse = paths["/insights"]["get"]["responses"][200]["content"]["application/json"];
+type InsightListResponse =
+  paths["/organizations/{organizationId}/insights"]["get"]["responses"][200]["content"]["application/json"];
 type InsightStatusResponse =
   paths["/organizations/{organizationId}/insights/{insightKey}/review"]["post"]["responses"][200]["content"]["application/json"];
 
 export async function listInsights(params: {
   organizationId: string;
-  repositoryId?: operations["listInsightsAlias"]["parameters"]["query"]["repositoryId"];
-  type?: operations["listInsightsAlias"]["parameters"]["query"]["type"];
-  status?: operations["listInsightsAlias"]["parameters"]["query"]["status"];
+  repositoryId?: operations["listInsights"]["parameters"]["query"]["repositoryId"];
+  type?: operations["listInsights"]["parameters"]["query"]["type"];
+  status?: operations["listInsights"]["parameters"]["query"]["status"];
   from: string;
   to: string;
   page?: number;
   pageSize?: number;
 }) {
   const response = await apiRequest<InsightListResponse>(
-    "/insights",
+    `/organizations/${params.organizationId}/insights`,
     {
       method: "GET",
     },
     {
-      organizationId: params.organizationId,
       repositoryId: params.repositoryId,
       type: params.type,
       status: params.status,
@@ -33,7 +33,7 @@ export async function listInsights(params: {
     },
   );
 
-  return insightListResponseSchema.parse(response);
+  return parseInsightListResponse(response);
 }
 
 export async function reviewInsight(params: {

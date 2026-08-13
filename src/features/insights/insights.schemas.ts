@@ -30,15 +30,45 @@ export const insightSchema = z.object({
   reopenedAt: z.string().nullable().optional(),
 });
 
+const insightPaginationSchema = z.object({
+  page: z.number().int().min(1),
+  pageSize: z.number().int().min(1),
+  totalItems: z.number().int().min(0),
+  totalPages: z.number().int().min(0),
+});
+
 export const insightListResponseSchema = z.object({
   data: z.array(insightSchema),
-  pagination: z.object({
-    page: z.number().int().min(1),
-    pageSize: z.number().int().min(1),
-    totalItems: z.number().int().min(0),
-    totalPages: z.number().int().min(0),
-  }),
+  pagination: insightPaginationSchema,
 });
+
+const rawInsightListResponseSchema = z.object({
+  data: z.array(z.unknown()),
+  pagination: insightPaginationSchema,
+});
+
+/**
+ * Parses one insight at a time so a single malformed/unrecognized item (for
+ * example a new insightType or severity the frontend enum doesn't know about
+ * yet) is skipped instead of failing the entire list response.
+ */
+export function parseInsightListResponse(payload: unknown) {
+  const raw = rawInsightListResponseSchema.parse(payload);
+
+  const data: Insight[] = [];
+  let skippedCount = 0;
+
+  for (const item of raw.data) {
+    const parsed = insightSchema.safeParse(item);
+    if (parsed.success) {
+      data.push(parsed.data);
+    } else {
+      skippedCount += 1;
+    }
+  }
+
+  return { data, pagination: raw.pagination, skippedCount };
+}
 
 export const insightStatusResponseSchema = z.object({
   data: z.object({

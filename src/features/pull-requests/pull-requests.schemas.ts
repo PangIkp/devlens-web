@@ -23,6 +23,19 @@ const fileChangeSchema = z.object({
   commitCount: z.number().int(),
 });
 
+const timelineEventSchema = z.object({
+  type: z.enum(["created", "review_requested", "review_started", "review_submitted", "merged", "closed"]),
+  label: z.string(),
+  actor: z.string().nullable().optional(),
+  state: z.string().nullable().optional(),
+  occurredAt: z.string(),
+});
+
+const riskIndicatorSchema = z.object({
+  level: z.enum(["low", "medium", "high"]),
+  reasons: z.array(z.string()),
+});
+
 export const pullRequestListItemSchema = z.object({
   id: z.string().min(1),
   repository: repositoryRefSchema,
@@ -43,6 +56,8 @@ export const pullRequestListItemSchema = z.object({
 export const pullRequestDetailSchema = pullRequestListItemSchema.extend({
   reviews: z.array(reviewSchema),
   fileChanges: z.array(fileChangeSchema),
+  timeline: z.array(timelineEventSchema),
+  riskIndicator: riskIndicatorSchema,
 });
 
 export const pullRequestListResponseSchema = z.object({
@@ -61,3 +76,5 @@ export const pullRequestResponseSchema = z.object({
 
 export type PullRequestListItem = z.infer<typeof pullRequestListItemSchema>;
 export type PullRequestDetail = z.infer<typeof pullRequestDetailSchema>;
+export type PullRequestTimelineEvent = z.infer<typeof timelineEventSchema>;
+export type PullRequestRiskIndicator = z.infer<typeof riskIndicatorSchema>;

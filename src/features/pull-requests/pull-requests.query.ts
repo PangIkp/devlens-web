@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getPullRequest, listPullRequests } from "@/features/pull-requests/pull-requests.api";
+import { getPullRequest, listPullRequests, type PullRequestSortBy } from "@/features/pull-requests/pull-requests.api";
 
 export const pullRequestKeys = {
   all: ["pullRequests"] as const,
@@ -14,7 +14,7 @@ export function usePullRequestsQuery(
     pageSize: number;
     search?: string;
     status?: "open" | "closed" | "merged";
-    sortBy?: "createdAt" | "number";
+    sortBy?: PullRequestSortBy;
     sortOrder?: "asc" | "desc";
   },
   enabled = true,

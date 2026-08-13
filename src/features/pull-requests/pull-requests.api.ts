@@ -1,4 +1,4 @@
-import type { paths } from "@/api/generated/schema";
+import type { operations, paths } from "@/api/generated/schema";
 import { pullRequestListResponseSchema, pullRequestResponseSchema } from "@/features/pull-requests/pull-requests.schemas";
 import { apiRequest } from "@/lib/api-client";
 
@@ -7,9 +7,9 @@ type PullRequestResponse =
 type PullRequestListResponse =
   paths["/pull-requests"]["get"]["responses"][200]["content"]["application/json"];
 
-type PullRequestStatus = "open" | "closed" | "merged";
-type PullRequestSortBy = "createdAt" | "updatedAt" | "mergedAt";
-type PullRequestSortOrder = "asc" | "desc";
+type PullRequestStatus = NonNullable<operations["listPullRequests"]["parameters"]["query"]>["status"];
+export type PullRequestSortBy = NonNullable<operations["listPullRequests"]["parameters"]["query"]>["sortBy"];
+type PullRequestSortOrder = NonNullable<operations["listPullRequests"]["parameters"]["query"]>["sortOrder"];
 
 export async function getPullRequest(pullRequestId: string) {
   const response = await apiRequest<PullRequestResponse>(`/pull-requests/${pullRequestId}`, {

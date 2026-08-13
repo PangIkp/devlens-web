@@ -217,6 +217,13 @@ function InsightsPage() {
             />
           ) : null}
 
+          {insightsQuery.data && insightsQuery.data.skippedCount > 0 ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+              {insightsQuery.data.skippedCount} insight{insightsQuery.data.skippedCount > 1 ? "s were" : " was"} hidden
+              because the backend returned an unrecognized shape. The rest of this page is unaffected.
+            </div>
+          ) : null}
+
           <div className="space-y-4">
             {insightsQuery.isLoading ? <p className="text-sm text-muted-foreground">Loading insights...</p> : null}
             {(insightsQuery.data?.data ?? []).map((insight) => (

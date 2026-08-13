@@ -19,6 +19,8 @@ const pullRequestsSearchSchema = z.object({
   repositoryId: z.string().min(1).optional(),
   search: z.string().optional(),
   status: z.enum(["open", "closed", "merged"]).optional(),
+  sortBy: z.enum(["createdAt", "number"]).catch("createdAt").default("createdAt"),
+  sortOrder: z.enum(["asc", "desc"]).catch("desc").default("desc"),
   page: z.number().int().min(1).catch(1).default(1),
 });
 
@@ -31,6 +33,8 @@ export const pullRequestsRoute = createRoute({
       repositoryId: typeof search.repositoryId === "string" ? search.repositoryId : undefined,
       search: typeof search.search === "string" ? search.search : undefined,
       status: typeof search.status === "string" ? search.status : undefined,
+      sortBy: typeof search.sortBy === "string" ? search.sortBy : "createdAt",
+      sortOrder: typeof search.sortOrder === "string" ? search.sortOrder : "desc",
       page: typeof search.page === "number" ? search.page : typeof search.page === "string" ? Number(search.page) : 1,
     }),
   component: PullRequestsPage,
@@ -62,6 +66,8 @@ function PullRequestsPage() {
       pageSize: 10,
       search: search.search,
       status: search.status,
+      sortBy: search.sortBy,
+      sortOrder: search.sortOrder,
     },
     Boolean(selectedRepositoryId),
   );
@@ -103,7 +109,7 @@ function PullRequestsPage() {
       >
         <div className="space-y-6">
           <form
-            className="grid gap-3 lg:grid-cols-[1.2fr_1.2fr_1fr_auto]"
+            className="grid gap-3 lg:grid-cols-[1.1fr_1.1fr_0.9fr_0.9fr_auto]"
             onSubmit={(event) => {
               event.preventDefault();
               updateSearch({ search: searchInput || undefined, page: 1 });
@@ -144,6 +150,25 @@ function PullRequestsPage() {
                 <option value="open">Open</option>
                 <option value="merged">Merged</option>
                 <option value="closed">Closed</option>
+              </Select>
+            </label>
+            <label className="space-y-2">
+              <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Sort</span>
+              <Select
+                aria-label="Sort pull requests"
+                value={`${search.sortBy}:${search.sortOrder}`}
+                onChange={(event) => {
+                  const [sortBy, sortOrder] = event.target.value.split(":") as [
+                    "createdAt" | "number",
+                    "asc" | "desc",
+                  ];
+                  updateSearch({ sortBy, sortOrder, page: 1 });
+                }}
+              >
+                <option value="createdAt:desc">Newest first</option>
+                <option value="createdAt:asc">Oldest first</option>
+                <option value="number:desc">PR number (high to low)</option>
+                <option value="number:asc">PR number (low to high)</option>
               </Select>
             </label>
             <div className="flex gap-3">

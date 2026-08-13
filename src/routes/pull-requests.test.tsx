@@ -14,7 +14,28 @@ function jsonResponse(status: number, body: unknown) {
   };
 }
 
-function createPullRequestsFetchStub() {
+function pullRequestListItem(overrides?: Partial<Record<string, unknown>>) {
+  return {
+    id: pullRequestId,
+    repository: { id: repositoryId, fullName: "devlens-labs/devlens-api" },
+    githubPrId: 10001,
+    number: 42,
+    title: "Improve sync retries",
+    author: "itsara",
+    state: "open",
+    createdAt: "2026-08-12T09:00:00Z",
+    additions: 40,
+    deletions: 12,
+    filesChanged: 3,
+    isDraft: false,
+    ...overrides,
+  };
+}
+
+function createPullRequestsFetchStub(options?: {
+  listItemsByPage?: Record<number, unknown[]>;
+  totalPages?: number;
+}) {
   return vi.fn().mockImplementation((input: string | URL) => {
     const url = new URL(String(input));
 
@@ -51,25 +72,14 @@ function createPullRequestsFetchStub() {
     }
 
     if (url.pathname === "/api/v1/pull-requests") {
+      const page = Number(url.searchParams.get("page") ?? "1");
+      const totalPages = options?.totalPages ?? 1;
+      const data = options?.listItemsByPage?.[page] ?? [pullRequestListItem()];
+
       return Promise.resolve(
         jsonResponse(200, {
-          data: [
-            {
-              id: pullRequestId,
-              repository: { id: repositoryId, fullName: "devlens-labs/devlens-api" },
-              githubPrId: 10001,
-              number: 42,
-              title: "Improve sync retries",
-              author: "itsara",
-              state: "open",
-              createdAt: "2026-08-12T09:00:00Z",
-              additions: 40,
-              deletions: 12,
-              filesChanged: 3,
-              isDraft: false,
-            },
-          ],
-          pagination: { page: 1, pageSize: 10, totalItems: 1, totalPages: 1 },
+          data,
+          pagination: { page, pageSize: 10, totalItems: totalPages, totalPages },
         }),
       );
     }
@@ -78,18 +88,7 @@ function createPullRequestsFetchStub() {
       return Promise.resolve(
         jsonResponse(200, {
           data: {
-            id: pullRequestId,
-            repository: { id: repositoryId, fullName: "devlens-labs/devlens-api" },
-            githubPrId: 10001,
-            number: 42,
-            title: "Improve sync retries",
-            author: "itsara",
-            state: "open",
-            createdAt: "2026-08-12T09:00:00Z",
-            additions: 40,
-            deletions: 12,
-            filesChanged: 3,
-            isDraft: false,
+            ...pullRequestListItem(),
             reviews: [
               {
                 id: "44444444-4444-4444-8444-444444444444",
@@ -108,6 +107,25 @@ function createPullRequestsFetchStub() {
                 commitCount: 2,
               },
             ],
+            timeline: [
+              {
+                type: "created",
+                label: "Pull request created",
+                actor: "itsara",
+                occurredAt: "2026-08-12T09:00:00Z",
+              },
+              {
+                type: "review_submitted",
+                label: "Review submitted",
+                actor: "techlead",
+                state: "APPROVED",
+                occurredAt: "2026-08-12T10:00:00Z",
+              },
+            ],
+            riskIndicator: {
+              level: "high",
+              reasons: ["Pull request touches more than 500 lines", "No tests were changed"],
+            },
           },
         }),
       );
@@ -130,5 +148,64 @@ describe("pull requests routes", () => {
     expect(await screen.findByText("Changed files")).toBeInTheDocument();
     expect(screen.getByText("internal/sync/retry.go")).toBeInTheDocument();
     expect(screen.getByText("techlead")).toBeInTheDocument();
+  });
+
+  it("renders timeline and risk indicator on pull request detail", async () => {
+    vi.stubGlobal("fetch", createPullRequestsFetchStub());
+    const user = userEvent.setup();
+
+    renderApp("/pull-requests");
+
+    expect(await screen.findByText("Improve sync retries")).toBeInTheDocument();
+    await user.click(screen.getByRole("link", { name: "Improve sync retries" }));
+
+    expect(await screen.findByText("Timeline")).toBeInTheDocument();
+    expect(screen.getByText("Pull request created")).toBeInTheDocument();
+    expect(screen.getByText("Review submitted")).toBeInTheDocument();
+    expect(screen.getByText("high risk")).toBeInTheDocument();
+    expect(screen.getByText("Pull request touches more than 500 lines")).toBeInTheDocument();
+    expect(screen.getByText("No tests were changed")).toBeInTheDocument();
+  });
+
+  it("changes sort order and requests the backend with the selected sortBy/sortOrder", async () => {
+    const fetchStub = createPullRequestsFetchStub();
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+
+    renderApp("/pull-requests");
+
+    expect(await screen.findByText("Improve sync retries")).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("Sort pull requests"), "number:asc");
+
+    const requestedUrls = fetchStub.mock.calls.map(([input]) => String(input));
+
+    expect(
+      requestedUrls.some(
+        (url) => url.includes("/api/v1/pull-requests") && url.includes("sortBy=number") && url.includes("sortOrder=asc"),
+      ),
+    ).toBe(true);
+  });
+
+  it("paginates through multiple pages of pull requests", async () => {
+    const fetchStub = createPullRequestsFetchStub({
+      totalPages: 2,
+      listItemsByPage: {
+        1: [pullRequestListItem({ number: 42, title: "Improve sync retries" })],
+        2: [pullRequestListItem({ id: "44444444-4444-4444-8444-444444444444", number: 41, title: "Fix flaky worker test" })],
+      },
+    });
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+
+    renderApp("/pull-requests");
+
+    expect(await screen.findByText("Improve sync retries")).toBeInTheDocument();
+    expect(screen.getByText("Page 1 / 2")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Next page" }));
+
+    expect(await screen.findByText("Fix flaky worker test")).toBeInTheDocument();
+    expect(screen.getByText("Page 2 / 2")).toBeInTheDocument();
   });
 });

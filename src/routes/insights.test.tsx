@@ -13,7 +13,31 @@ function jsonResponse(status: number, body: unknown) {
   };
 }
 
-function createInsightsFetchStub() {
+function slowReviewInsight(overrides?: Partial<Record<string, unknown>>) {
+  return {
+    insightKey: "slow-review-1",
+    insightType: "slow_review_detection",
+    status: "open",
+    severity: "high",
+    title: "Review Wait Time increased",
+    summary: "Review Wait Time increased 62% in the last 14 days.",
+    organizationId,
+    repositoryId,
+    repositoryName: "devlens-labs/devlens-api",
+    detectedAt: "2026-08-12T10:00:00Z",
+    evidence: {
+      reviewWaitMinutes: 180,
+      baselineMinutes: 111,
+      ruleConfig: {
+        waitHoursThreshold: 24,
+        highSeverityWaitHoursThreshold: 48,
+      },
+    },
+    ...overrides,
+  };
+}
+
+function createInsightsFetchStub(options?: { extraInsights?: unknown[] }) {
   return vi.fn().mockImplementation((input: string | URL, init?: RequestInit) => {
     const url = new URL(String(input));
     const method = init?.method ?? "GET";
@@ -50,33 +74,15 @@ function createInsightsFetchStub() {
       );
     }
 
-    if (url.pathname === "/api/v1/insights" && method === "GET") {
+    if (url.pathname === `/api/v1/organizations/${organizationId}/insights` && method === "GET") {
       const status = url.searchParams.get("status");
+      const extra = options?.extraInsights ?? [];
+      const data = status === "dismissed" ? [] : [slowReviewInsight(), ...extra];
 
       return Promise.resolve(
         jsonResponse(200, {
-          data:
-            status === "dismissed"
-              ? []
-              : [
-                  {
-                    insightKey: "slow-review-1",
-                    insightType: "slow_review_detection",
-                    status: "open",
-                    severity: "high",
-                    title: "Review Wait Time increased",
-                    summary: "Review Wait Time increased 62% in the last 14 days.",
-                    organizationId,
-                    repositoryId,
-                    repositoryName: "devlens-labs/devlens-api",
-                    detectedAt: "2026-08-12T10:00:00Z",
-                    evidence: {
-                      reviewWaitMinutes: 180,
-                      baselineMinutes: 111,
-                    },
-                  },
-                ],
-          pagination: { page: 1, pageSize: 10, totalItems: status === "dismissed" ? 0 : 1, totalPages: 1 },
+          data,
+          pagination: { page: 1, pageSize: 10, totalItems: data.length, totalPages: 1 },
         }),
       );
     }
@@ -116,5 +122,47 @@ describe("insights route", () => {
 
     expect(await screen.findByText("No insights detected")).toBeInTheDocument();
     expect(fetchStub.mock.calls.some(([input]) => String(input).includes("/dismiss"))).toBe(true);
+  });
+
+  it("requests insights from the primary organization-scoped path", async () => {
+    const fetchStub = createInsightsFetchStub();
+    vi.stubGlobal("fetch", fetchStub);
+
+    renderApp("/insights");
+
+    expect(await screen.findByRole("heading", { name: "Review Wait Time increased" })).toBeInTheDocument();
+
+    const requestedUrls = fetchStub.mock.calls.map(([input]) => String(input));
+
+    expect(requestedUrls.some((url) => url.includes(`/api/v1/organizations/${organizationId}/insights?`))).toBe(true);
+    expect(requestedUrls.some((url) => url.startsWith("http://localhost:3000/api/v1/insights?"))).toBe(false);
+  });
+
+  it("renders nested evidence values and skips malformed insights instead of failing the page", async () => {
+    vi.stubGlobal(
+      "fetch",
+      createInsightsFetchStub({
+        extraInsights: [
+          {
+            insightKey: "broken-insight",
+            insightType: "large_pr_detection",
+            // status is intentionally missing/invalid to simulate an unrecognized backend shape
+            status: "unknown_future_status",
+            severity: "high",
+            title: "Broken insight",
+            summary: "This item should be skipped without breaking the page.",
+            organizationId,
+            detectedAt: "2026-08-12T10:00:00Z",
+          },
+        ],
+      }),
+    );
+
+    renderApp("/insights");
+
+    expect(await screen.findByRole("heading", { name: "Review Wait Time increased" })).toBeInTheDocument();
+    expect(screen.getByText("waitHoursThreshold")).toBeInTheDocument();
+    expect(screen.getByText("24")).toBeInTheDocument();
+    expect(screen.getByText(/1 insight was hidden/)).toBeInTheDocument();
   });
 });

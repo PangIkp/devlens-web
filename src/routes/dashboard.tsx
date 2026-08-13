@@ -6,6 +6,8 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { PageShell } from "@/components/layout/page-shell";
 import { DashboardSummaryGrid } from "@/components/dashboard/dashboard-summary-grid";
 import { DashboardHotspotsTable } from "@/components/dashboard/dashboard-hotspots-table";
+import { DashboardReviewQueueTable } from "@/components/dashboard/dashboard-review-queue-table";
+import { DashboardWorkloadDistribution } from "@/components/dashboard/dashboard-workload-distribution";
 import { EChartPanel } from "@/components/charts/echart-panel";
 import { EmptyState, ErrorState } from "@/components/shared/query-state";
 import { Button } from "@/components/ui/button";
@@ -16,13 +18,17 @@ import {
   useHotspotMetricsQuery,
   usePullRequestMetricsQuery,
   useReviewMetricsQuery,
+  useReviewQueueQuery,
+  useWorkloadDistributionQuery,
 } from "@/features/dashboard/dashboard.query";
 import {
+  alignComparisonSeries,
   createLineSeriesData,
   dashboardRangePresets,
   getDashboardDateRangeForPreset,
   getDashboardPresetFromRange,
   getDefaultDashboardDateRange,
+  getPreviousDateRange,
   isValidDateRange,
 } from "@/features/dashboard/dashboard.utils";
 import { useOrganizationsQuery } from "@/features/organizations/use-organizations-query";
@@ -40,6 +46,8 @@ const dashboardSearchSchema = z
     from: z.string().default(defaultRange.from),
     to: z.string().default(defaultRange.to),
     hotspotPage: z.number().int().min(1).catch(1).default(1),
+    reviewQueuePage: z.number().int().min(1).catch(1).default(1),
+    compare: z.boolean().catch(false).default(false),
   })
   .refine((value) => isValidDateRange(value.from, value.to), {
     message: "from must be before or equal to to",
@@ -61,9 +69,70 @@ export const dashboardRoute = createRoute({
           : typeof search.hotspotPage === "string"
             ? Number(search.hotspotPage)
             : 1,
+      reviewQueuePage:
+        typeof search.reviewQueuePage === "number"
+          ? search.reviewQueuePage
+          : typeof search.reviewQueuePage === "string"
+            ? Number(search.reviewQueuePage)
+            : 1,
+      compare:
+        typeof search.compare === "boolean"
+          ? search.compare
+          : typeof search.compare === "string"
+            ? search.compare === "true"
+            : false,
     }),
   component: DashboardPage,
 });
+
+function buildTrendOption(
+  current: Array<{ date: string; value: number }>,
+  previous: Array<{ date: string; value: number }> | undefined,
+  seriesType: "line" | "bar",
+  withArea: boolean,
+): EChartsOption {
+  if (!previous) {
+    return {
+      tooltip: { trigger: "axis" },
+      xAxis: { type: "category" },
+      yAxis: { type: "value" },
+      series: [
+        {
+          type: seriesType,
+          smooth: seriesType === "line" ? true : undefined,
+          areaStyle: withArea ? { opacity: 0.08 } : undefined,
+          data: createLineSeriesData(current),
+        },
+      ],
+    };
+  }
+
+  const { categories, currentValues, previousValues } = alignComparisonSeries(current, previous);
+
+  return {
+    tooltip: { trigger: "axis" },
+    legend: { data: ["Current period", "Previous period"] },
+    xAxis: { type: "category", data: categories },
+    yAxis: { type: "value" },
+    series: [
+      {
+        name: "Current period",
+        type: seriesType,
+        smooth: seriesType === "line" ? true : undefined,
+        areaStyle: withArea ? { opacity: 0.08 } : undefined,
+        data: currentValues,
+      },
+      {
+        name: "Previous period",
+        type: seriesType,
+        smooth: seriesType === "line" ? true : undefined,
+        lineStyle: seriesType === "line" ? { type: "dashed" } : undefined,
+        itemStyle: seriesType === "bar" ? { opacity: 0.5 } : undefined,
+        data: previousValues,
+      },
+    ],
+  };
+}
 
 function DashboardPage() {
   const navigate = dashboardRoute.useNavigate();
@@ -117,6 +186,38 @@ function DashboardPage() {
     },
     Boolean(selectedRepositoryId),
   );
+  const reviewQueueQuery = useReviewQueueQuery(
+    {
+      repositoryId: selectedRepositoryId ?? "",
+      from: search.from,
+      to: search.to,
+      page: search.reviewQueuePage,
+      pageSize: 10,
+    },
+    Boolean(dashboardParams),
+  );
+  const workloadDistributionQuery = useWorkloadDistributionQuery(
+    dashboardParams ?? { repositoryId: "", from: search.from, to: search.to },
+    Boolean(dashboardParams),
+  );
+
+  const previousRange = getPreviousDateRange(search.from, search.to);
+  const previousDashboardParams = dashboardParams
+    ? { repositoryId: dashboardParams.repositoryId, from: previousRange.from, to: previousRange.to }
+    : undefined;
+  const comparisonEnabled = search.compare && Boolean(dashboardParams);
+  const previousPullRequestQuery = usePullRequestMetricsQuery(
+    previousDashboardParams ?? { repositoryId: "", from: previousRange.from, to: previousRange.to },
+    comparisonEnabled,
+  );
+  const previousReviewQuery = useReviewMetricsQuery(
+    previousDashboardParams ?? { repositoryId: "", from: previousRange.from, to: previousRange.to },
+    comparisonEnabled,
+  );
+  const previousDeploymentQuery = useDeploymentMetricsQuery(
+    previousDashboardParams ?? { repositoryId: "", from: previousRange.from, to: previousRange.to },
+    comparisonEnabled,
+  );
 
   useEffect(() => {
     if (!search.organizationId && organizations?.[0]?.id) {
@@ -149,6 +250,8 @@ function DashboardPage() {
     from?: string;
     to?: string;
     hotspotPage?: number;
+    reviewQueuePage?: number;
+    compare?: boolean;
   }) {
     void navigate({
       search: (previous) => ({
@@ -157,48 +260,32 @@ function DashboardPage() {
         from: next.from ?? previous.from,
         to: next.to ?? previous.to,
         hotspotPage: next.hotspotPage ?? previous.hotspotPage,
+        reviewQueuePage: next.reviewQueuePage ?? previous.reviewQueuePage,
+        compare: "compare" in next ? (next.compare ?? previous.compare) : previous.compare,
       }),
     });
   }
 
-  const summaryOption: EChartsOption = {
-    tooltip: { trigger: "axis" },
-    xAxis: { type: "category" },
-    yAxis: { type: "value" },
-    series: [
-      {
-        type: "line",
-        smooth: true,
-        areaStyle: { opacity: 0.08 },
-        data: createLineSeriesData(pullRequestQuery.data?.data.cycleTimeTrend ?? []),
-      },
-    ],
-  };
+  const summaryOption = buildTrendOption(
+    pullRequestQuery.data?.data.cycleTimeTrend ?? [],
+    comparisonEnabled ? previousPullRequestQuery.data?.data.cycleTimeTrend : undefined,
+    "line",
+    true,
+  );
 
-  const reviewOption: EChartsOption = {
-    tooltip: { trigger: "axis" },
-    xAxis: { type: "category" },
-    yAxis: { type: "value" },
-    series: [
-      {
-        type: "line",
-        smooth: true,
-        data: createLineSeriesData(reviewQuery.data?.data.waitTimeTrend ?? []),
-      },
-    ],
-  };
+  const reviewOption = buildTrendOption(
+    reviewQuery.data?.data.waitTimeTrend ?? [],
+    comparisonEnabled ? previousReviewQuery.data?.data.waitTimeTrend : undefined,
+    "line",
+    false,
+  );
 
-  const deploymentOption: EChartsOption = {
-    tooltip: { trigger: "axis" },
-    xAxis: { type: "category" },
-    yAxis: { type: "value" },
-    series: [
-      {
-        type: "bar",
-        data: createLineSeriesData(deploymentQuery.data?.data.deploymentTrend ?? []),
-      },
-    ],
-  };
+  const deploymentOption = buildTrendOption(
+    deploymentQuery.data?.data.deploymentTrend ?? [],
+    comparisonEnabled ? previousDeploymentQuery.data?.data.deploymentTrend : undefined,
+    "bar",
+    false,
+  );
 
   return (
     <AppLayout>
@@ -291,8 +378,20 @@ function DashboardPage() {
             </div>
           </form>
 
-          <div className="rounded-2xl border border-border/70 bg-background/60 px-4 py-3 text-sm text-muted-foreground">
-            Active range: {formatDateRange(search.from, search.to)}
+          <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-background/60 px-4 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+            <span>
+              Active range: {formatDateRange(search.from, search.to)}
+              {search.compare ? ` vs ${formatDateRange(previousRange.from, previousRange.to)}` : null}
+            </span>
+            <label className="flex items-center gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-border/70"
+                checked={search.compare}
+                onChange={(event) => updateSearch({ compare: event.target.checked })}
+              />
+              Compare to previous period
+            </label>
           </div>
 
           {organizationsQuery.isError ? (
@@ -405,10 +504,14 @@ function DashboardPage() {
                           </div>
                           <EChartPanel
                             title="PR cycle time trend"
-                            description="Trend of average pull request cycle time across the selected range."
+                            description={
+                              search.compare
+                                ? "Trend of average pull request cycle time, compared against the previous period of equal length."
+                                : "Trend of average pull request cycle time across the selected range."
+                            }
                             option={summaryOption}
                             empty={(pullRequestQuery.data?.data.cycleTimeTrend.length ?? 0) === 0}
-                            loading={pullRequestQuery.isLoading}
+                            loading={pullRequestQuery.isLoading || (comparisonEnabled && previousPullRequestQuery.isLoading)}
                           />
                         </div>
                       )}
@@ -453,10 +556,14 @@ function DashboardPage() {
                           </div>
                           <EChartPanel
                             title="Review wait time trend"
-                            description="Trend of waiting time before a pull request receives its first review."
+                            description={
+                              search.compare
+                                ? "Trend of review wait time, compared against the previous period of equal length."
+                                : "Trend of waiting time before a pull request receives its first review."
+                            }
                             option={reviewOption}
                             empty={(reviewQuery.data?.data.waitTimeTrend.length ?? 0) === 0}
-                            loading={reviewQuery.isLoading}
+                            loading={reviewQuery.isLoading || (comparisonEnabled && previousReviewQuery.isLoading)}
                           />
                         </div>
                       )}
@@ -503,10 +610,14 @@ function DashboardPage() {
                       </div>
                       <EChartPanel
                         title="Deployment trend"
-                        description="Time-based deployment trend for the selected range. Empty output means no deployment data is available yet."
+                        description={
+                          search.compare
+                            ? "Deployment trend compared against the previous period of equal length. Empty output means no deployment data is available yet."
+                            : "Time-based deployment trend for the selected range. Empty output means no deployment data is available yet."
+                        }
                         option={deploymentOption}
                         empty={(deploymentQuery.data?.data.deploymentTrend.length ?? 0) === 0}
-                        loading={deploymentQuery.isLoading}
+                        loading={deploymentQuery.isLoading || (comparisonEnabled && previousDeploymentQuery.isLoading)}
                         emptyTitle="No deployment data available"
                         emptyDescription="The backend returned no deployment datapoints for this repository and range."
                       />
@@ -571,6 +682,101 @@ function DashboardPage() {
                           </Button>
                         </div>
                       </>
+                    ) : null}
+                  </div>
+                </section>
+              ) : null}
+
+              {repositoryMetricsReady ? (
+                <section className="rounded-2xl border border-border/70 bg-background/60 p-5">
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold">Review queue</h2>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Open pull requests currently waiting for their first review response.
+                      </p>
+                    </div>
+                    {reviewQueueQuery.data ? (
+                      <p className="text-sm text-muted-foreground">
+                        Page {reviewQueueQuery.data.meta.page} / {Math.max(reviewQueueQuery.data.meta.totalPages, 1)}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-4 space-y-4">
+                    {reviewQueueQuery.isError ? (
+                      <ErrorState
+                        title="Could not load review queue"
+                        message={getErrorMessage(reviewQueueQuery.error)}
+                        onRetry={() => void reviewQueueQuery.refetch()}
+                      />
+                    ) : null}
+
+                    {reviewQueueQuery.data && reviewQueueQuery.data.data.length === 0 ? (
+                      <EmptyState
+                        title="Review queue is empty"
+                        description="No open pull requests are waiting for review in the selected range."
+                      />
+                    ) : null}
+
+                    {reviewQueueQuery.data && reviewQueueQuery.data.data.length > 0 ? (
+                      <>
+                        <DashboardReviewQueueTable items={reviewQueueQuery.data.data} />
+                        <div className="flex items-center justify-between">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={search.reviewQueuePage <= 1}
+                            onClick={() => updateSearch({ reviewQueuePage: search.reviewQueuePage - 1 })}
+                          >
+                            Previous page
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={
+                              reviewQueueQuery.data.meta.page >= Math.max(reviewQueueQuery.data.meta.totalPages, 1)
+                            }
+                            onClick={() => updateSearch({ reviewQueuePage: search.reviewQueuePage + 1 })}
+                          >
+                            Next page
+                          </Button>
+                        </div>
+                      </>
+                    ) : null}
+                  </div>
+                </section>
+              ) : null}
+
+              {repositoryMetricsReady ? (
+                <section className="rounded-2xl border border-border/70 bg-background/60 p-5">
+                  <h2 className="text-xl font-semibold">Workload distribution</h2>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    How pull requests and reviews are distributed across the team for the selected range.
+                  </p>
+
+                  <div className="mt-4">
+                    {workloadDistributionQuery.isError ? (
+                      <ErrorState
+                        title="Could not load workload distribution"
+                        message={getErrorMessage(workloadDistributionQuery.error)}
+                        onRetry={() => void workloadDistributionQuery.refetch()}
+                      />
+                    ) : null}
+
+                    {workloadDistributionQuery.data &&
+                    workloadDistributionQuery.data.data.contributors.length === 0 &&
+                    workloadDistributionQuery.data.data.reviewers.length === 0 ? (
+                      <EmptyState
+                        title="No workload data available"
+                        description="No pull requests or reviews were found for the selected range."
+                      />
+                    ) : null}
+
+                    {workloadDistributionQuery.data &&
+                    (workloadDistributionQuery.data.data.contributors.length > 0 ||
+                      workloadDistributionQuery.data.data.reviewers.length > 0) ? (
+                      <DashboardWorkloadDistribution distribution={workloadDistributionQuery.data.data} />
                     ) : null}
                   </div>
                 </section>
