@@ -16,6 +16,42 @@ function jsonResponse(status: number, body?: unknown) {
   };
 }
 
+function ruleSettingsBody() {
+  return {
+    data: {
+      largePR: { enabled: true, filesThreshold: 25, totalChangesThreshold: 800 },
+      slowReview: { enabled: true, waitHoursThreshold: 24 },
+      hotspot: { enabled: false, scoreThreshold: 150 },
+      deploymentFailure: { enabled: true, minimumDeployments: 3, failureRateThreshold: 0.3 },
+      reviewConcentration: { enabled: true, minimumReviewCount: 5, shareThreshold: 0.6 },
+      bottleneck: {
+        enabled: true,
+        minimumMergedCount: 3,
+        averageCycleHoursThreshold: 72,
+        staleOpenCountThreshold: 3,
+        staleOpenAgeDays: 7,
+      },
+      metrics: {
+        defaultDayType: "calendar",
+        hotspotCommitWeight: 1,
+        hotspotAdditionsWeight: 1,
+        hotspotDeletionsWeight: 1,
+      },
+      updatedAt: "2026-08-13T00:00:00Z",
+    },
+  };
+}
+
+function retentionSettingsBody(analyticsRawRetentionDays = 45) {
+  return {
+    data: {
+      analyticsRawRetentionDays,
+      enforced: false,
+      updatedAt: "2026-08-13T00:00:00Z",
+    },
+  };
+}
+
 function createSettingsFetchStub(options?: {
   connectionState?: "not_connected" | "installation_required" | "connected" | "syncing" | "sync_failed";
   accessibleSelectionStatus?: "not_selected" | "selected" | "syncing" | "sync_failed" | "synced";
@@ -278,6 +314,35 @@ function createSettingsFetchStub(options?: {
       );
     }
 
+    if (url.pathname === `/api/v1/organizations/${organizationId}/github/connection` && method === "DELETE") {
+      return Promise.resolve(
+        jsonResponse(200, {
+          data: {
+            organizationId,
+            provider: "github",
+            state: "not_connected",
+            connectedRepositories: 0,
+          },
+        }),
+      );
+    }
+
+    if (url.pathname === `/api/v1/organizations/${organizationId}/settings/rules`) {
+      if (method === "PUT") {
+        return Promise.resolve(jsonResponse(200, ruleSettingsBody()));
+      }
+
+      return Promise.resolve(jsonResponse(200, ruleSettingsBody()));
+    }
+
+    if (url.pathname === `/api/v1/organizations/${organizationId}/settings/retention`) {
+      if (method === "PUT") {
+        return Promise.resolve(jsonResponse(200, retentionSettingsBody(60)));
+      }
+
+      return Promise.resolve(jsonResponse(200, retentionSettingsBody()));
+    }
+
     return Promise.reject(new Error(`Unhandled URL: ${url.toString()} (${method})`));
   });
 }
@@ -357,6 +422,78 @@ describe("settings route", () => {
     ).length;
 
     expect(callbackCallsAfter).toBeGreaterThan(callbackCallsBefore);
+  });
+
+  it("disconnects GitHub after a confirmation step", async () => {
+    const fetchStub = createSettingsFetchStub();
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+
+    renderApp("/settings");
+
+    expect(await screen.findByText("GitHub connection")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Disconnect GitHub" }));
+    expect(
+      fetchStub.mock.calls.some(([input], index) => {
+        const init = fetchStub.mock.calls[index][1] as RequestInit | undefined;
+        return String(input).includes("/github/connection") && init?.method === "DELETE";
+      }),
+    ).toBe(false);
+
+    await user.click(screen.getByRole("button", { name: "Confirm disconnect" }));
+
+    expect(
+      fetchStub.mock.calls.some(([input], index) => {
+        const init = fetchStub.mock.calls[index][1] as RequestInit | undefined;
+        return String(input).includes(`/organizations/${organizationId}/github/connection`) && init?.method === "DELETE";
+      }),
+    ).toBe(true);
+  });
+
+  it("saves rule settings with the full section payload", async () => {
+    const fetchStub = createSettingsFetchStub();
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+
+    renderApp("/settings");
+
+    expect(await screen.findByText("Insight & metric rules")).toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: "Save rule settings" }));
+
+    const rulesPutCall = fetchStub.mock.calls.find(([input], index) => {
+      const init = fetchStub.mock.calls[index][1] as RequestInit | undefined;
+      return String(input).includes(`/organizations/${organizationId}/settings/rules`) && init?.method === "PUT";
+    });
+
+    expect(rulesPutCall).toBeDefined();
+    const body = JSON.parse((rulesPutCall?.[1] as RequestInit).body as string) as {
+      largePR: unknown;
+      metrics: { defaultDayType: string };
+    };
+    expect(body.largePR).toEqual({ enabled: true, filesThreshold: 25, totalChangesThreshold: 800 });
+    expect(body.metrics.defaultDayType).toBe("calendar");
+  });
+
+  it("saves retention settings", async () => {
+    const fetchStub = createSettingsFetchStub();
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+
+    renderApp("/settings");
+
+    expect(await screen.findByText("Data retention")).toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: "Save retention settings" }));
+
+    const retentionPutCall = fetchStub.mock.calls.find(([input], index) => {
+      const init = fetchStub.mock.calls[index][1] as RequestInit | undefined;
+      return String(input).includes(`/organizations/${organizationId}/settings/retention`) && init?.method === "PUT";
+    });
+
+    expect(retentionPutCall).toBeDefined();
+    expect(JSON.parse((retentionPutCall?.[1] as RequestInit).body as string)).toEqual({
+      analyticsRawRetentionDays: 45,
+    });
   });
 
   it("blocks sync when repository onboarding is incomplete", async () => {

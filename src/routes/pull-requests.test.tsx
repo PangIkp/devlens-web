@@ -126,6 +126,8 @@ function createPullRequestsFetchStub(options?: {
               level: "high",
               reasons: ["Pull request touches more than 500 lines", "No tests were changed"],
             },
+            cycleTimeMinutes: 120,
+            reviewWaitMinutes: 45,
           },
         }),
       );
@@ -165,6 +167,10 @@ describe("pull requests routes", () => {
     expect(screen.getByText("high risk")).toBeInTheDocument();
     expect(screen.getByText("Pull request touches more than 500 lines")).toBeInTheDocument();
     expect(screen.getByText("No tests were changed")).toBeInTheDocument();
+    expect(screen.getByText("Cycle time")).toBeInTheDocument();
+    expect(screen.getByText("2h")).toBeInTheDocument();
+    expect(screen.getByText("Review wait time")).toBeInTheDocument();
+    expect(screen.getByText("45m")).toBeInTheDocument();
   });
 
   it("changes sort order and requests the backend with the selected sortBy/sortOrder", async () => {

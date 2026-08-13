@@ -96,3 +96,11 @@ export async function selectAccessibleGitHubRepositories(params: {
 
   return githubRepositorySelectionResponseSchema.parse(response);
 }
+
+export async function disconnectGitHubConnection(organizationId: string) {
+  const response = await apiRequest<GitHubConnectionResponse>(`/organizations/${organizationId}/github/connection`, {
+    method: "DELETE",
+  });
+
+  return githubConnectionResponseSchema.parse(response);
+}

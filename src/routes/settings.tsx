@@ -10,9 +10,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { OrganizationRetentionSettingsCard } from "@/components/settings/organization-retention-settings-card";
+import { OrganizationRuleSettingsCard } from "@/components/settings/organization-rule-settings-card";
 import {
   useAccessibleGitHubRepositoriesQuery,
   useCompleteGitHubInstallationMutation,
+  useDisconnectGitHubConnectionMutation,
   useGitHubConnectionQuery,
   useSelectAccessibleGitHubRepositoriesMutation,
   useStartGitHubInstallationMutation,
@@ -163,6 +166,7 @@ function SettingsPage() {
   const startInstallationMutation = useStartGitHubInstallationMutation(selectedOrganizationId ?? "");
   const completeInstallationMutation = useCompleteGitHubInstallationMutation();
   const selectRepositoriesMutation = useSelectAccessibleGitHubRepositoriesMutation();
+  const disconnectGitHubMutation = useDisconnectGitHubConnectionMutation();
   const createSyncMutation = useCreateRepositorySyncMutation();
   const retrySyncMutation = useRetrySyncJobMutation();
   const cancelSyncMutation = useCancelSyncJobMutation();
@@ -171,6 +175,7 @@ function SettingsPage() {
   const deleteMemberMutation = useDeleteOrganizationMemberMutation();
 
   const [callbackKey, setCallbackKey] = useState<string | null>(null);
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const [selectedAccessibleRepositoryIds, setSelectedAccessibleRepositoryIds] = useState<number[]>([]);
   const [createOrganizationForm, setCreateOrganizationForm] = useState({
     githubId: "",
@@ -321,15 +326,16 @@ function SettingsPage() {
               <Select
                 aria-label="Settings organization"
                 value={selectedOrganizationId ?? ""}
-                onChange={(event) =>
+                onChange={(event) => {
+                  setConfirmDisconnect(false);
                   updateSearch({
                     organizationId: event.target.value,
                     repositoryId: undefined,
                     syncJobId: undefined,
                     accessiblePage: 1,
                     syncPage: 1,
-                  })
-                }
+                  });
+                }}
               >
                 {organizations.map((organization) => (
                   <option key={organization.id} value={organization.id}>
@@ -556,6 +562,52 @@ function SettingsPage() {
                     })
                   }
                 />
+              ) : null}
+
+              {githubConnectionQuery.data &&
+              (connectionState === "connected" || connectionState === "syncing" || connectionState === "sync_failed") ? (
+                <div className="space-y-3 rounded-xl border border-dashed border-rose-200 p-4">
+                  <div>
+                    <h3 className="font-semibold text-rose-700">Disconnect GitHub</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Soft-disconnects this organization&apos;s GitHub App installation and cancels any in-progress sync
+                      jobs. Historical data is kept and purged later on the normal retention schedule; reconnecting
+                      before that purge reuses the existing data.
+                    </p>
+                  </div>
+                  {disconnectGitHubMutation.isError ? (
+                    <ErrorState
+                      title="Could not disconnect GitHub"
+                      message={getErrorMessage(disconnectGitHubMutation.error)}
+                    />
+                  ) : null}
+                  {confirmDisconnect ? (
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="text-sm text-rose-700">Are you sure? This can&apos;t be undone from the UI.</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={disconnectGitHubMutation.isPending}
+                        onClick={() => {
+                          if (selectedOrganizationId) {
+                            disconnectGitHubMutation.mutate(selectedOrganizationId, {
+                              onSuccess: () => setConfirmDisconnect(false),
+                            });
+                          }
+                        }}
+                      >
+                        {disconnectGitHubMutation.isPending ? "Disconnecting..." : "Confirm disconnect"}
+                      </Button>
+                      <Button type="button" variant="outline" onClick={() => setConfirmDisconnect(false)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button type="button" variant="outline" onClick={() => setConfirmDisconnect(true)}>
+                      Disconnect GitHub
+                    </Button>
+                  )}
+                </div>
               ) : null}
             </Card>
 
@@ -951,6 +1003,13 @@ function SettingsPage() {
               </div>
             </Card>
           </section>
+
+          {selectedOrganizationId ? (
+            <section className="grid gap-6 xl:grid-cols-2">
+              <OrganizationRuleSettingsCard organizationId={selectedOrganizationId} />
+              <OrganizationRetentionSettingsCard organizationId={selectedOrganizationId} />
+            </section>
+          ) : null}
         </div>
       </PageShell>
     </AppLayout>

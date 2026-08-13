@@ -220,7 +220,11 @@ export interface paths {
         get: operations["getGitHubConnection"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Disconnect the GitHub App installation for an organization
+         * @description Soft-disconnects the organization's GitHub App installation (sets disconnected_at) and cancels any in-progress sync jobs for its repositories. Historical data is retained and purged later per the configured retention window; reconnecting before that purge reuses the existing data.
+         */
+        delete: operations["disconnectGitHubConnection"];
         options?: never;
         head?: never;
         patch?: never;
@@ -288,6 +292,54 @@ export interface paths {
         put?: never;
         /** Select accessible GitHub repositories to connect and sync */
         post: operations["selectAccessibleGitHubRepositories"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organizations/{organizationId}/settings/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get effective insight rule and metric rule settings for an organization
+         * @description Returns the effective configuration (stored overrides merged over the platform defaults) for the 6 insight rule types and the repository metrics rules (day type, hotspot weights). Fields an organization has never overridden report the platform default.
+         */
+        get: operations["getOrganizationRuleSettings"];
+        /**
+         * Update insight rule and metric rule settings for an organization
+         * @description Partially updates the organization's rule overrides. Only the sections/fields included in the request body change; omitted fields keep their previous value (or the platform default if never overridden). High-severity thresholds are not yet configurable and always use the platform default.
+         */
+        put: operations["updateOrganizationRuleSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organizations/{organizationId}/settings/retention": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get analytics data retention settings for an organization
+         * @description Returns the organization's effective raw analytics data retention window in days. `enforced` is currently always `false`: the override is stored and reported here for the frontend to build against, but actual deletion still runs on a single global ClickHouse TTL applied to all organizations. Per-organization enforcement is a follow-up.
+         */
+        get: operations["getOrganizationRetentionSettings"];
+        /**
+         * Update analytics data retention settings for an organization
+         * @description Sets the organization's raw analytics retention override in days. Not retroactive: lowering the value does not delete existing data immediately (see the `enforced` note on GET).
+         */
+        put: operations["updateOrganizationRetentionSettings"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -891,6 +943,126 @@ export interface components {
         GitHubConnectionResponse: {
             data: components["schemas"]["GitHubConnection"];
         };
+        OrganizationRuleSettings: {
+            largePR: components["schemas"]["LargePRRuleSettings"];
+            slowReview: components["schemas"]["SlowReviewRuleSettings"];
+            hotspot: components["schemas"]["HotspotRuleSettings"];
+            deploymentFailure: components["schemas"]["DeploymentFailureRuleSettings"];
+            reviewConcentration: components["schemas"]["ReviewConcentrationRuleSettings"];
+            bottleneck: components["schemas"]["BottleneckRuleSettings"];
+            metrics: components["schemas"]["MetricRuleSettings"];
+            /** Format: date-time */
+            updatedAt?: string | null;
+        };
+        LargePRRuleSettings: {
+            enabled: boolean;
+            filesThreshold: number;
+            totalChangesThreshold: number;
+        };
+        SlowReviewRuleSettings: {
+            enabled: boolean;
+            /** Format: double */
+            waitHoursThreshold: number;
+        };
+        HotspotRuleSettings: {
+            enabled: boolean;
+            scoreThreshold: number;
+        };
+        DeploymentFailureRuleSettings: {
+            enabled: boolean;
+            minimumDeployments: number;
+            /** Format: double */
+            failureRateThreshold: number;
+        };
+        ReviewConcentrationRuleSettings: {
+            enabled: boolean;
+            minimumReviewCount: number;
+            /** Format: double */
+            shareThreshold: number;
+        };
+        BottleneckRuleSettings: {
+            enabled: boolean;
+            minimumMergedCount: number;
+            /** Format: double */
+            averageCycleHoursThreshold: number;
+            staleOpenCountThreshold: number;
+            staleOpenAgeDays: number;
+        };
+        MetricRuleSettings: {
+            /** @enum {string} */
+            defaultDayType: "calendar" | "business";
+            /** Format: double */
+            hotspotCommitWeight: number;
+            /** Format: double */
+            hotspotAdditionsWeight: number;
+            /** Format: double */
+            hotspotDeletionsWeight: number;
+        };
+        OrganizationRuleSettingsResponse: {
+            data: components["schemas"]["OrganizationRuleSettings"];
+        };
+        /** @description Every field at every level is optional. Only sections/fields present in the request are changed; everything else keeps its previous value (or the platform default if never overridden). */
+        UpdateOrganizationRuleSettingsRequest: {
+            largePR?: {
+                enabled?: boolean;
+                filesThreshold?: number;
+                totalChangesThreshold?: number;
+            };
+            slowReview?: {
+                enabled?: boolean;
+                /** Format: double */
+                waitHoursThreshold?: number;
+            };
+            hotspot?: {
+                enabled?: boolean;
+                scoreThreshold?: number;
+            };
+            deploymentFailure?: {
+                enabled?: boolean;
+                minimumDeployments?: number;
+                /** Format: double */
+                failureRateThreshold?: number;
+            };
+            reviewConcentration?: {
+                enabled?: boolean;
+                minimumReviewCount?: number;
+                /** Format: double */
+                shareThreshold?: number;
+            };
+            bottleneck?: {
+                enabled?: boolean;
+                minimumMergedCount?: number;
+                /** Format: double */
+                averageCycleHoursThreshold?: number;
+                staleOpenCountThreshold?: number;
+                staleOpenAgeDays?: number;
+            };
+            metrics?: {
+                /** @enum {string} */
+                defaultDayType?: "calendar" | "business";
+                /** Format: double */
+                hotspotCommitWeight?: number;
+                /** Format: double */
+                hotspotAdditionsWeight?: number;
+                /** Format: double */
+                hotspotDeletionsWeight?: number;
+            };
+        };
+        OrganizationRetentionSettings: {
+            /** @description Effective raw analytics data retention window in days. */
+            analyticsRawRetentionDays: number;
+            /** @description Always false today. The value is stored and reported here, but data deletion still runs on a single global ClickHouse TTL shared by all organizations; per-organization enforcement is a follow-up. */
+            enforced: boolean;
+            /** Format: date-time */
+            updatedAt?: string | null;
+        };
+        OrganizationRetentionSettingsResponse: {
+            data: components["schemas"]["OrganizationRetentionSettings"];
+        };
+        UpdateOrganizationRetentionSettingsRequest: {
+            /** @description Set to null to clear the override and fall back to the platform-wide default. */
+            analyticsRawRetentionDays?: number | null;
+        };
         StartGitHubInstallationRequest: {
             /** Format: uri */
             redirectUrl?: string | null;
@@ -1074,6 +1246,16 @@ export interface components {
             fileChanges: components["schemas"]["PullRequestFileChange"][];
             timeline: components["schemas"]["PullRequestTimelineEvent"][];
             riskIndicator: components["schemas"]["PullRequestRiskIndicator"];
+            /**
+             * Format: int64
+             * @description Minutes from createdAt to mergedAt. Null if the PR has not been merged.
+             */
+            cycleTimeMinutes?: number | null;
+            /**
+             * Format: int64
+             * @description Minutes from the PR's first review request to the first non-bot reviewer's response. Null if no non-bot reviewer has responded yet.
+             */
+            reviewWaitMinutes?: number | null;
         };
         PullRequestResponse: {
             data: components["schemas"]["PullRequestDetail"];
@@ -1979,6 +2161,31 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    disconnectGitHubConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description GitHub connection disconnected */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubConnectionResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     startGitHubInstallation: {
         parameters: {
             query?: never;
@@ -2093,6 +2300,116 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    getOrganizationRuleSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Effective organization rule settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationRuleSettingsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateOrganizationRuleSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateOrganizationRuleSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated organization rule settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationRuleSettingsResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getOrganizationRetentionSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Effective organization retention settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationRetentionSettingsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateOrganizationRetentionSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateOrganizationRetentionSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated organization retention settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationRetentionSettingsResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     getRepository: {

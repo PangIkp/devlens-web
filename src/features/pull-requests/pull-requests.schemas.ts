@@ -58,6 +58,8 @@ export const pullRequestDetailSchema = pullRequestListItemSchema.extend({
   fileChanges: z.array(fileChangeSchema),
   timeline: z.array(timelineEventSchema),
   riskIndicator: riskIndicatorSchema,
+  cycleTimeMinutes: z.number().int().nullable().optional().transform((value) => value ?? null),
+  reviewWaitMinutes: z.number().int().nullable().optional().transform((value) => value ?? null),
 });
 
 export const pullRequestListResponseSchema = z.object({

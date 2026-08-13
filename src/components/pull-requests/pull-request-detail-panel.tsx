@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { StatusPill } from "@/components/shared/status-pill";
 import { PullRequestTimeline } from "@/components/pull-requests/pull-request-timeline";
 import { formatDateTime } from "@/components/repositories/repository-utils";
+import { formatDurationMinutes } from "@/lib/formatters";
 
 function getPullRequestTone(state: string) {
   if (state === "merged") {
@@ -53,7 +54,7 @@ export function PullRequestDetailPanel({ pullRequest }: { pullRequest: PullReque
             ))}
           </ul>
         ) : null}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
           <div className="rounded-xl border border-border/70 bg-background/70 p-4">
             <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Files changed</p>
             <p className="mt-2 text-2xl font-semibold">{pullRequest.filesChanged}</p>
@@ -65,6 +66,14 @@ export function PullRequestDetailPanel({ pullRequest }: { pullRequest: PullReque
           <div className="rounded-xl border border-border/70 bg-background/70 p-4">
             <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Deletions</p>
             <p className="mt-2 text-2xl font-semibold">-{pullRequest.deletions}</p>
+          </div>
+          <div className="rounded-xl border border-border/70 bg-background/70 p-4">
+            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Cycle time</p>
+            <p className="mt-2 text-2xl font-semibold">{formatDurationMinutes(pullRequest.cycleTimeMinutes)}</p>
+          </div>
+          <div className="rounded-xl border border-border/70 bg-background/70 p-4">
+            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Review wait time</p>
+            <p className="mt-2 text-2xl font-semibold">{formatDurationMinutes(pullRequest.reviewWaitMinutes)}</p>
           </div>
         </div>
       </Card>

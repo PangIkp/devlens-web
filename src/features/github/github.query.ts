@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   completeGitHubInstallation,
+  disconnectGitHubConnection,
   getGitHubConnection,
   listAccessibleGitHubRepositories,
   selectAccessibleGitHubRepositories,
@@ -67,6 +68,19 @@ export function useSelectAccessibleGitHubRepositoriesMutation() {
     onSuccess: (_, variables) => {
       void queryClient.invalidateQueries({ queryKey: githubKeys.connection(variables.organizationId) });
       void queryClient.invalidateQueries({ queryKey: githubKeys.repositories(variables.organizationId, 1, 20).slice(0, 3) });
+    },
+  });
+}
+
+export function useDisconnectGitHubConnectionMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: disconnectGitHubConnection,
+    onSuccess: (_, organizationId) => {
+      void queryClient.invalidateQueries({ queryKey: githubKeys.connection(organizationId) });
+      void queryClient.invalidateQueries({ queryKey: githubKeys.repositories(organizationId, 1, 20).slice(0, 3) });
+      void queryClient.invalidateQueries({ queryKey: organizationsKeys.lists() });
     },
   });
 }
