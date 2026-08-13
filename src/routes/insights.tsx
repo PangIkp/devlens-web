@@ -119,6 +119,7 @@ function InsightsPage() {
               <Select
                 aria-label="Insight organization"
                 value={selectedOrganizationId ?? ""}
+                disabled={organizationsQuery.isLoading || organizations.length === 0}
                 onChange={(event) => updateSearch({ organizationId: event.target.value, repositoryId: undefined, page: 1 })}
               >
                 {organizations.map((organization) => (
@@ -134,6 +135,7 @@ function InsightsPage() {
               <Select
                 aria-label="Insight repository"
                 value={search.repositoryId ?? ""}
+                disabled={repositoriesQuery.isLoading || (repositoriesQuery.data?.data.length ?? 0) === 0}
                 onChange={(event) => updateSearch({ repositoryId: event.target.value || undefined, page: 1 })}
               >
                 <option value="">All repositories</option>
@@ -184,6 +186,20 @@ function InsightsPage() {
               </Select>
             </label>
           </div>
+
+          {!organizationsQuery.isLoading && !organizationsQuery.isError && organizations.length === 0 ? (
+            <EmptyState
+              title="No organizations available"
+              description="Your current account does not have access to any organization yet. Create one from Settings before reviewing insights."
+            />
+          ) : null}
+
+          {!repositoriesQuery.isLoading && !repositoriesQuery.isError && organizations.length > 0 && (repositoriesQuery.data?.data.length ?? 0) === 0 ? (
+            <EmptyState
+              title="No repositories available"
+              description="This organization does not have any managed repositories yet, so the backend cannot generate insights for it."
+            />
+          ) : null}
 
           {insightsQuery.isError ? (
             <ErrorState

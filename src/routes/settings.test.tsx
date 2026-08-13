@@ -270,7 +270,7 @@ describe("settings route", () => {
     vi.stubGlobal("fetch", fetchStub);
     const user = userEvent.setup();
 
-    renderApp(`/settings?userId=${userId}`);
+    renderApp("/settings");
 
     expect(await screen.findByText("Connection, onboarding, and organization settings")).toBeInTheDocument();
     expect(screen.getByText("DevLens Labs")).toBeInTheDocument();

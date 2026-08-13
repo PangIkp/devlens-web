@@ -110,7 +110,11 @@ function PullRequestsPage() {
           >
             <label className="space-y-2">
               <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Organization</span>
-              <Select value={selectedOrganizationId ?? ""} onChange={(event) => updateSearch({ organizationId: event.target.value, repositoryId: undefined, page: 1 })}>
+              <Select
+                value={selectedOrganizationId ?? ""}
+                disabled={organizationsQuery.isLoading || organizations.length === 0}
+                onChange={(event) => updateSearch({ organizationId: event.target.value, repositoryId: undefined, page: 1 })}
+              >
                 {organizations.map((organization) => (
                   <option key={organization.id} value={organization.id}>
                     {organization.name}
@@ -120,7 +124,11 @@ function PullRequestsPage() {
             </label>
             <label className="space-y-2">
               <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Repository</span>
-              <Select value={selectedRepositoryId ?? ""} onChange={(event) => updateSearch({ repositoryId: event.target.value, page: 1 })}>
+              <Select
+                value={selectedRepositoryId ?? ""}
+                disabled={repositoriesQuery.isLoading || repositories.length === 0}
+                onChange={(event) => updateSearch({ repositoryId: event.target.value, page: 1 })}
+              >
                 {repositories.map((repository) => (
                   <option key={repository.id} value={repository.id}>
                     {repository.fullName}
@@ -142,6 +150,20 @@ function PullRequestsPage() {
               <Button type="submit">Apply</Button>
             </div>
           </form>
+
+          {!organizationsQuery.isLoading && !organizationsQuery.isError && organizations.length === 0 ? (
+            <EmptyState
+              title="No organizations available"
+              description="Your current account does not have access to any organization yet. Create one from Settings before browsing pull requests."
+            />
+          ) : null}
+
+          {!repositoriesQuery.isLoading && !repositoriesQuery.isError && organizations.length > 0 && repositories.length === 0 ? (
+            <EmptyState
+              title="No repositories available"
+              description="This organization does not have a managed repository yet. Connect one from Settings before opening pull requests."
+            />
+          ) : null}
 
           {pullRequestsQuery.isError ? (
             <ErrorState

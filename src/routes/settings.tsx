@@ -43,7 +43,6 @@ const settingsSearchSchema = z.object({
   organizationId: z.string().min(1).optional(),
   repositoryId: z.string().min(1).optional(),
   syncJobId: z.string().min(1).optional(),
-  userId: z.string().min(1).optional(),
   accessiblePage: z.number().int().min(1).catch(1).default(1),
   syncPage: z.number().int().min(1).catch(1).default(1),
   installation_id: z.number().int().optional(),
@@ -58,7 +57,6 @@ export const settingsRoute = createRoute({
       organizationId: typeof search.organizationId === "string" ? search.organizationId : undefined,
       repositoryId: typeof search.repositoryId === "string" ? search.repositoryId : undefined,
       syncJobId: typeof search.syncJobId === "string" ? search.syncJobId : undefined,
-      userId: typeof search.userId === "string" ? search.userId : undefined,
       accessiblePage:
         typeof search.accessiblePage === "number"
           ? search.accessiblePage
@@ -150,7 +148,7 @@ function SettingsPage() {
   );
   const selectedSyncJobId = search.syncJobId ?? syncJobsQuery.data?.data[0]?.id;
   const syncJobDetailQuery = useSyncJobDetailQuery(selectedSyncJobId ?? "", Boolean(selectedSyncJobId));
-  const meQuery = useMeQuery(search.userId ?? "", Boolean(search.userId));
+  const meQuery = useMeQuery();
 
   const createOrganizationMutation = useCreateOrganizationMutation();
   const updateOrganizationMutation = useUpdateOrganizationMutation();
@@ -179,7 +177,6 @@ function SettingsPage() {
   const [memberDrafts, setMemberDrafts] = useState<Record<string, "owner" | "admin" | "member">>({});
   const [newMemberUserId, setNewMemberUserId] = useState("");
   const [newMemberRole, setNewMemberRole] = useState<"owner" | "admin" | "member">("member");
-  const [userIdInput, setUserIdInput] = useState(search.userId ?? "");
 
   useEffect(() => {
     if (!search.organizationId && organizations[0]?.id) {
@@ -239,10 +236,6 @@ function SettingsPage() {
       .map((repository) => repository.githubRepositoryId);
     setSelectedAccessibleRepositoryIds(nextSelected);
   }, [accessibleRepositoriesQuery.data]);
-
-  useEffect(() => {
-    setUserIdInput(search.userId ?? "");
-  }, [search.userId]);
 
   useEffect(() => {
     const nextCallbackKey =
@@ -318,21 +311,6 @@ function SettingsPage() {
               </Select>
             </label>
 
-            <label className="space-y-2">
-              <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Current user lookup</span>
-              <div className="flex gap-2">
-                <Input
-                  aria-label="Current user id"
-                  value={userIdInput}
-                  onChange={(event) => setUserIdInput(event.target.value)}
-                  placeholder="UUID required by /me"
-                />
-                <Button type="button" variant="outline" onClick={() => updateSearch({ userId: userIdInput || undefined })}>
-                  Load
-                </Button>
-              </div>
-            </label>
-
             <div className="flex items-end">
               <Button
                 type="button"
@@ -341,7 +319,6 @@ function SettingsPage() {
                   updateSearch({
                     installation_id: undefined,
                     setup_action: undefined,
-                    userId: undefined,
                   })
                 }
               >
@@ -354,9 +331,7 @@ function SettingsPage() {
             <Card className="space-y-4">
               <div>
                 <h2 className="text-xl font-semibold">User profile</h2>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  The current backend milestone requires an explicit `userId` query parameter for `/me`.
-                </p>
+                <p className="mt-2 text-sm text-muted-foreground">This card reads the current authenticated user from the bearer-token-backed <code>/me</code> endpoint.</p>
               </div>
               {meQuery.isLoading ? <p className="text-sm text-muted-foreground">Loading current user profile...</p> : null}
               {meQuery.isError ? (
@@ -385,12 +360,6 @@ function SettingsPage() {
                     <p className="mt-2">{formatDateTime(meQuery.data.data.createdAt)}</p>
                   </div>
                 </div>
-              ) : null}
-              {!search.userId ? (
-                <EmptyState
-                  title="No user requested"
-                  description="Enter a user id to fetch the current user profile using the backend contract available in this milestone."
-                />
               ) : null}
             </Card>
 

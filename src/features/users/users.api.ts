@@ -4,14 +4,10 @@ import { apiRequest } from "@/lib/api-client";
 
 type MeResponse = paths["/me"]["get"]["responses"][200]["content"]["application/json"];
 
-export async function getMe(userId: string) {
-  const response = await apiRequest<MeResponse>(
-    "/me",
-    {
-      method: "GET",
-    },
-    { userId },
-  );
+export async function getMe() {
+  const response = await apiRequest<MeResponse>("/me", {
+    method: "GET",
+  });
 
   return meResponseSchema.parse(response);
 }

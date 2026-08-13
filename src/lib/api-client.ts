@@ -1,6 +1,12 @@
 import { env } from "@/lib/env";
+import { clearAuthSession, getAuthSession, setAuthSession } from "@/features/auth/auth.store";
+import { sessionResponseSchema } from "@/features/auth/auth.schemas";
 
 type QueryParams = Record<string, string | number | boolean | undefined>;
+type ApiRequestOptions = {
+  auth?: boolean;
+  retryOnUnauthorized?: boolean;
+};
 
 export class ApiError extends Error {
   constructor(
@@ -45,23 +51,80 @@ async function parseResponse(response: Response) {
   }
 }
 
+async function refreshAccessToken() {
+  const session = getAuthSession();
+
+  if (!session?.refreshToken) {
+    clearAuthSession();
+    return null;
+  }
+
+  const response = await fetch(buildUrl("/auth/refresh"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      refreshToken: session.refreshToken,
+    }),
+  });
+
+  const payload = await parseResponse(response);
+
+  if (!response.ok) {
+    clearAuthSession();
+    return null;
+  }
+
+  const parsed = sessionResponseSchema.parse(payload);
+  setAuthSession(parsed.data);
+
+  return parsed.data;
+}
+
 export async function apiRequest<TResponse>(
   path: string,
   init?: RequestInit,
   query?: QueryParams,
+  options?: ApiRequestOptions,
 ): Promise<TResponse> {
   const headers = new Headers(init?.headers);
+  const authEnabled = options?.auth ?? true;
+  const retryOnUnauthorized = options?.retryOnUnauthorized ?? authEnabled;
+  const session = getAuthSession();
 
   if (init?.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(buildUrl(path, query), {
-    headers,
-    ...init,
-  });
+  if (authEnabled && session?.accessToken && !headers.has("Authorization")) {
+    headers.set("Authorization", `${session.tokenType} ${session.accessToken}`);
+  }
 
-  const payload = await parseResponse(response);
+  const doRequest = (requestHeaders: Headers) =>
+    fetch(buildUrl(path, query), {
+      headers: requestHeaders,
+      ...init,
+    });
+
+  let response = await doRequest(headers);
+  let payload = await parseResponse(response);
+
+  if (response.status === 401 && retryOnUnauthorized && authEnabled && session?.refreshToken) {
+    const refreshedSession = await refreshAccessToken();
+
+    if (refreshedSession) {
+      const retryHeaders = new Headers(init?.headers);
+
+      if (init?.body && !retryHeaders.has("Content-Type")) {
+        retryHeaders.set("Content-Type", "application/json");
+      }
+
+      retryHeaders.set("Authorization", `${refreshedSession.tokenType} ${refreshedSession.accessToken}`);
+      response = await doRequest(retryHeaders);
+      payload = await parseResponse(response);
+    }
+  }
 
   if (!response.ok) {
     throw new ApiError(`Request failed with status ${response.status}`, response.status, payload);

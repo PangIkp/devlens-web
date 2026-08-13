@@ -23,7 +23,7 @@ export function AppSidebar() {
     >
       <div className="mb-8 px-2">
         <p className="text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">DevLens</p>
-        {sidebarOpen ? <h1 className="mt-2 text-2xl font-bold">Frontend Foundation</h1> : null}
+        {sidebarOpen ? <h1 className="mt-2 text-2xl font-bold">DevLens Web</h1> : null}
       </div>
       <nav className="space-y-2">
         {navigationItems.map((item) => (

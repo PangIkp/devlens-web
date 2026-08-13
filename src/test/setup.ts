@@ -1,4 +1,6 @@
 import "@testing-library/jest-dom";
+import { afterEach } from "vitest";
+import { clearAuthSession } from "@/features/auth/auth.store";
 
 Object.defineProperty(window, "scrollTo", {
   value: vi.fn(),
@@ -21,3 +23,8 @@ class ResizeObserverMock {
 }
 
 vi.stubGlobal("ResizeObserver", ResizeObserverMock);
+
+afterEach(() => {
+  clearAuthSession();
+  window.localStorage.clear();
+});
