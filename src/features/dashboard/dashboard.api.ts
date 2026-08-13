@@ -4,6 +4,7 @@ import {
   deploymentMetricsResponseSchema,
   hotspotMetricsBodySchema,
   pullRequestMetricsResponseSchema,
+  repositoryMetricsResponseSchema,
   reviewMetricsResponseSchema,
   reviewQueueResponseSchema,
   workloadDistributionResponseSchema,
@@ -24,6 +25,8 @@ type ReviewQueueResponse =
   paths["/repositories/{repositoryId}/dashboard/review-queue"]["get"]["responses"][200]["content"]["application/json"];
 type WorkloadDistributionApiResponse =
   paths["/repositories/{repositoryId}/metrics/workload-distribution"]["get"]["responses"][200]["content"]["application/json"];
+type RepositoryMetricsApiResponse =
+  paths["/repositories/{repositoryId}/metrics"]["get"]["responses"][200]["content"]["application/json"];
 
 export type DashboardRange = {
   from: operations["getDashboardSummary"]["parameters"]["query"]["from"];
@@ -157,4 +160,23 @@ export async function getWorkloadDistribution({ repositoryId, from, to }: RangeW
   );
 
   return workloadDistributionResponseSchema.parse(response);
+}
+
+export async function getRepositoryMetrics({
+  repositoryId,
+  from,
+  to,
+  interval,
+}: RangeWithRepositoryId & {
+  interval?: operations["getRepositoryMetrics"]["parameters"]["query"]["interval"];
+}) {
+  const response = await apiRequest<RepositoryMetricsApiResponse>(
+    `/repositories/${repositoryId}/metrics`,
+    {
+      method: "GET",
+    },
+    { from, to, interval },
+  );
+
+  return repositoryMetricsResponseSchema.parse(response);
 }

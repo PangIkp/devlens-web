@@ -47,6 +47,7 @@ const settingsSearchSchema = z.object({
   accessiblePage: z.number().int().min(1).catch(1).default(1),
   syncPage: z.number().int().min(1).catch(1).default(1),
   installation_id: z.number().int().optional(),
+  state: z.string().optional(),
   setup_action: z.string().optional(),
 });
 
@@ -76,6 +77,7 @@ export const settingsRoute = createRoute({
           : typeof search.installation_id === "string"
             ? Number(search.installation_id)
             : undefined,
+      state: typeof search.state === "string" ? search.state : undefined,
       setup_action: typeof search.setup_action === "string" ? search.setup_action : undefined,
     }),
   component: SettingsPage,
@@ -244,8 +246,8 @@ function SettingsPage() {
 
   useEffect(() => {
     const nextCallbackKey =
-      selectedOrganizationId && search.installation_id
-        ? `${selectedOrganizationId}:${search.installation_id}:${search.setup_action ?? ""}`
+      selectedOrganizationId && search.installation_id && search.state
+        ? `${selectedOrganizationId}:${search.installation_id}:${search.state}:${search.setup_action ?? ""}`
         : null;
 
     if (!nextCallbackKey || callbackKey === nextCallbackKey) {
@@ -255,6 +257,7 @@ function SettingsPage() {
     completeInstallationMutation.mutate({
       organizationId: selectedOrganizationId,
       installationId: search.installation_id,
+      state: search.state,
       setupAction: search.setup_action,
     });
     setCallbackKey(nextCallbackKey);
@@ -263,6 +266,7 @@ function SettingsPage() {
     completeInstallationMutation,
     search.installation_id,
     search.setup_action,
+    search.state,
     selectedOrganizationId,
   ]);
 
@@ -342,6 +346,7 @@ function SettingsPage() {
                 onClick={() =>
                   updateSearch({
                     installation_id: undefined,
+                    state: undefined,
                     setup_action: undefined,
                   })
                 }
@@ -442,16 +447,19 @@ function SettingsPage() {
                 <h3 className="font-semibold">Create organization</h3>
                 <div className="grid gap-3 md:grid-cols-3">
                   <Input
+                    aria-label="New organization GitHub id"
                     placeholder="GitHub id"
                     value={createOrganizationForm.githubId}
                     onChange={(event) => setCreateOrganizationForm((current) => ({ ...current, githubId: event.target.value }))}
                   />
                   <Input
+                    aria-label="New organization slug"
                     placeholder="slug"
                     value={createOrganizationForm.slug}
                     onChange={(event) => setCreateOrganizationForm((current) => ({ ...current, slug: event.target.value }))}
                   />
                   <Input
+                    aria-label="New organization name"
                     placeholder="name"
                     value={createOrganizationForm.name}
                     onChange={(event) => setCreateOrganizationForm((current) => ({ ...current, name: event.target.value }))}
@@ -530,6 +538,24 @@ function SettingsPage() {
 
               {completeInstallationMutation.isPending ? (
                 <p className="text-sm text-muted-foreground">Handling GitHub installation callback...</p>
+              ) : null}
+
+              {completeInstallationMutation.isError ? (
+                <ErrorState
+                  title="Could not complete GitHub installation callback"
+                  message={getErrorMessage(completeInstallationMutation.error)}
+                  onRetry={() =>
+                    selectedOrganizationId &&
+                    search.installation_id &&
+                    search.state &&
+                    completeInstallationMutation.mutate({
+                      organizationId: selectedOrganizationId,
+                      installationId: search.installation_id,
+                      state: search.state,
+                      setupAction: search.setup_action,
+                    })
+                  }
+                />
               ) : null}
             </Card>
 
@@ -844,6 +870,7 @@ function SettingsPage() {
                       <p className="mt-1 text-xs text-muted-foreground">{member.id}</p>
                     </div>
                     <Select
+                      aria-label={`Role for member ${member.userId}`}
                       value={memberDrafts[member.id] ?? member.role}
                       onChange={(event) =>
                         setMemberDrafts((current) => ({
@@ -859,6 +886,7 @@ function SettingsPage() {
                     <Button
                       type="button"
                       variant="outline"
+                      aria-label={`Save role for member ${member.userId}`}
                       onClick={() =>
                         selectedOrganizationId &&
                         updateMemberMutation.mutate({
@@ -875,6 +903,7 @@ function SettingsPage() {
                     <Button
                       type="button"
                       variant="outline"
+                      aria-label={`Remove member ${member.userId}`}
                       onClick={() =>
                         selectedOrganizationId &&
                         deleteMemberMutation.mutate({
@@ -889,8 +918,17 @@ function SettingsPage() {
                 ))}
               </div>
               <div className="grid gap-3 rounded-xl border border-dashed border-border/70 p-4 md:grid-cols-[1.6fr_0.8fr_auto]">
-                <Input placeholder="User UUID" value={newMemberUserId} onChange={(event) => setNewMemberUserId(event.target.value)} />
-                <Select value={newMemberRole} onChange={(event) => setNewMemberRole(event.target.value as "owner" | "admin" | "member")}>
+                <Input
+                  aria-label="New member user UUID"
+                  placeholder="User UUID"
+                  value={newMemberUserId}
+                  onChange={(event) => setNewMemberUserId(event.target.value)}
+                />
+                <Select
+                  aria-label="New member role"
+                  value={newMemberRole}
+                  onChange={(event) => setNewMemberRole(event.target.value as "owner" | "admin" | "member")}
+                >
                   <option value="owner">owner</option>
                   <option value="admin">admin</option>
                   <option value="member">member</option>

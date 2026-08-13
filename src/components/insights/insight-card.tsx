@@ -78,16 +78,34 @@ export function InsightCard({
       <div className="flex flex-wrap gap-3">
         {insight.status === "open" ? (
           <>
-            <Button type="button" variant="outline" disabled={actionsDisabled} onClick={onReview}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={actionsDisabled}
+              onClick={onReview}
+              aria-label={`Mark reviewed: ${insight.title}`}
+            >
               Mark reviewed
             </Button>
-            <Button type="button" variant="outline" disabled={actionsDisabled} onClick={onDismiss}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={actionsDisabled}
+              onClick={onDismiss}
+              aria-label={`Dismiss: ${insight.title}`}
+            >
               Dismiss
             </Button>
           </>
         ) : null}
         {insight.status === "dismissed" ? (
-          <Button type="button" variant="outline" disabled={actionsDisabled} onClick={onReopen}>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={actionsDisabled}
+            onClick={onReopen}
+            aria-label={`Reopen: ${insight.title}`}
+          >
             Reopen
           </Button>
         ) : null}

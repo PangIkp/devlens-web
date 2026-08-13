@@ -5,6 +5,7 @@ import {
   getDeploymentMetrics,
   getHotspotMetrics,
   getPullRequestMetrics,
+  getRepositoryMetrics,
   getReviewMetrics,
   getReviewQueue,
   getWorkloadDistribution,
@@ -30,6 +31,8 @@ export const dashboardKeys = {
     [...dashboardKeys.all, "reviewQueue", repositoryId, range, page, pageSize] as const,
   workloadDistribution: (repositoryId: string, range: DashboardRange) =>
     [...dashboardKeys.all, "workloadDistribution", repositoryId, range] as const,
+  repositoryMetrics: (repositoryId: string, range: DashboardRange, interval: string) =>
+    [...dashboardKeys.all, "repositoryMetrics", repositoryId, range, interval] as const,
 };
 
 export function useDashboardSummaryQuery(params: RepositoryScopedRange, enabled = true) {
@@ -104,6 +107,16 @@ export function useWorkloadDistributionQuery(params: RepositoryScopedRange, enab
   return useQuery({
     queryKey: dashboardKeys.workloadDistribution(params.repositoryId, params),
     queryFn: () => getWorkloadDistribution(params),
+    enabled,
+  });
+}
+
+export function useRepositoryMetricsQuery(params: RepositoryScopedRange, enabled = true) {
+  const interval = inferMetricsInterval(params.from, params.to);
+
+  return useQuery({
+    queryKey: dashboardKeys.repositoryMetrics(params.repositoryId, params, interval),
+    queryFn: () => getRepositoryMetrics({ ...params, interval }),
     enabled,
   });
 }

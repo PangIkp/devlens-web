@@ -117,7 +117,7 @@ describe("insights route", () => {
     expect(screen.getAllByText("devlens-labs/devlens-api").length).toBeGreaterThan(0);
     expect(screen.getByText("reviewWaitMinutes")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Dismiss" }));
+    await user.click(screen.getByRole("button", { name: "Dismiss: Review Wait Time increased" }));
     await user.selectOptions(screen.getByLabelText("Insight status"), "dismissed");
 
     expect(await screen.findByText("No insights detected")).toBeInTheDocument();

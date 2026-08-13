@@ -21,6 +21,7 @@ function createSettingsFetchStub(options?: {
   accessibleSelectionStatus?: "not_selected" | "selected" | "syncing" | "sync_failed" | "synced";
   accessibleInstallationStatus?: "accessible" | "not_installed" | "suspended";
   createSyncResponse?: { status: number; body: unknown };
+  callbackStatus?: number;
 }) {
   return vi.fn().mockImplementation((input: string | URL, init?: RequestInit) => {
     const url = new URL(String(input));
@@ -100,6 +101,14 @@ function createSettingsFetchStub(options?: {
     }
 
     if (url.pathname === `/api/v1/organizations/${organizationId}/github/installations/callback`) {
+      if (options?.callbackStatus && options.callbackStatus >= 400) {
+        return Promise.resolve(
+          jsonResponse(options.callbackStatus, {
+            error: { code: "VALIDATION_ERROR", message: "request validation failed" },
+          }),
+        );
+      }
+
       return Promise.resolve(
         jsonResponse(200, {
           data: {
@@ -296,7 +305,27 @@ describe("settings route", () => {
     expect(requestedUrls.some((url) => url.includes(`/organizations/${organizationId}/members`))).toBe(true);
   });
 
-  it("handles installation callback search params", async () => {
+  it("handles installation callback search params, including the required state token", async () => {
+    const fetchStub = createSettingsFetchStub();
+    vi.stubGlobal("fetch", fetchStub);
+
+    renderApp(`/settings?organizationId=${organizationId}&installation_id=999&state=opaque-state-token&setup_action=install`);
+
+    expect(await screen.findByText("GitHub connection")).toBeInTheDocument();
+    expect(
+      fetchStub.mock.calls.some(([input]) => {
+        const url = String(input);
+        return (
+          url.includes(`/organizations/${organizationId}/github/installations/callback`) &&
+          url.includes("installation_id=999") &&
+          url.includes("state=opaque-state-token") &&
+          url.includes("setup_action=install")
+        );
+      }),
+    ).toBe(true);
+  });
+
+  it("does not call the callback endpoint when the state token is missing", async () => {
     const fetchStub = createSettingsFetchStub();
     vi.stubGlobal("fetch", fetchStub);
 
@@ -304,8 +333,30 @@ describe("settings route", () => {
 
     expect(await screen.findByText("GitHub connection")).toBeInTheDocument();
     expect(
-      fetchStub.mock.calls.some(([input]) => String(input).includes(`/organizations/${organizationId}/github/installations/callback?installation_id=999&setup_action=install`)),
-    ).toBe(true);
+      fetchStub.mock.calls.some(([input]) => String(input).includes("/github/installations/callback")),
+    ).toBe(false);
+  });
+
+  it("shows an error and allows retry when the installation callback fails", async () => {
+    const fetchStub = createSettingsFetchStub({ callbackStatus: 400 });
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+
+    renderApp(`/settings?organizationId=${organizationId}&installation_id=999&state=opaque-state-token&setup_action=install`);
+
+    expect(await screen.findByText("Could not complete GitHub installation callback")).toBeInTheDocument();
+
+    const callbackCallsBefore = fetchStub.mock.calls.filter(([input]) =>
+      String(input).includes("/github/installations/callback"),
+    ).length;
+
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+
+    const callbackCallsAfter = fetchStub.mock.calls.filter(([input]) =>
+      String(input).includes("/github/installations/callback"),
+    ).length;
+
+    expect(callbackCallsAfter).toBeGreaterThan(callbackCallsBefore);
   });
 
   it("blocks sync when repository onboarding is incomplete", async () => {

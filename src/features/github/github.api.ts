@@ -39,6 +39,7 @@ export async function startGitHubInstallation(organizationId: string, redirectUr
 export async function completeGitHubInstallation(params: {
   organizationId: string;
   installationId: operations["completeGitHubInstallation"]["parameters"]["query"]["installation_id"];
+  state: operations["completeGitHubInstallation"]["parameters"]["query"]["state"];
   setupAction?: operations["completeGitHubInstallation"]["parameters"]["query"]["setup_action"];
 }) {
   const response = await apiRequest<CompleteGitHubInstallationResponse>(
@@ -48,6 +49,7 @@ export async function completeGitHubInstallation(params: {
     },
     {
       installation_id: params.installationId,
+      state: params.state,
       setup_action: params.setupAction,
     },
   );

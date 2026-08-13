@@ -124,6 +124,23 @@ export const workloadDistributionResponseSchema = z.object({
   data: workloadDistributionSchema,
 });
 
+export const repositoryMetricsPayloadSchema = z.object({
+  metricVersion: z.number().int(),
+  repositoryId: identifierSchema,
+  from: z.string(),
+  to: z.string(),
+  interval: z.string(),
+  summary: dashboardSummarySchema,
+  pullRequests: pullRequestMetricsSchema,
+  reviews: reviewMetricsSchema,
+  deployments: deploymentMetricsSchema,
+  hotspots: z.array(hotspotFileSchema),
+});
+
+export const repositoryMetricsResponseSchema = z.object({
+  data: repositoryMetricsPayloadSchema,
+});
+
 export type DashboardSummary = z.infer<typeof dashboardSummarySchema>;
 export type PullRequestMetrics = z.infer<typeof pullRequestMetricsSchema>;
 export type ReviewMetrics = z.infer<typeof reviewMetricsSchema>;
@@ -133,3 +150,4 @@ export type ReviewQueueItem = z.infer<typeof reviewQueueItemSchema>;
 export type ContributorDistributionItem = z.infer<typeof contributorDistributionItemSchema>;
 export type ReviewerDistributionItem = z.infer<typeof reviewerDistributionItemSchema>;
 export type WorkloadDistribution = z.infer<typeof workloadDistributionSchema>;
+export type RepositoryMetricsPayload = z.infer<typeof repositoryMetricsPayloadSchema>;
