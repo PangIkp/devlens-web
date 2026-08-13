@@ -13,6 +13,7 @@ import { Select } from "@/components/ui/select";
 import { useOrganizationsQuery } from "@/features/organizations/use-organizations-query";
 import { useRepositoriesListQuery } from "@/features/repositories/repositories.query";
 import type { RepositoryStatus } from "@/features/repositories/repositories.schemas";
+import { getErrorMessage } from "@/lib/api-errors";
 
 const repositoriesSearchSchema = z.object({
   organizationId: z.string().min(1).optional(),
@@ -172,7 +173,7 @@ function RepositoriesPage() {
           {organizationsQuery.isError ? (
             <ErrorState
               title="Could not load organizations"
-              message={organizationsQuery.error instanceof Error ? organizationsQuery.error.message : "Unknown error"}
+              message={getErrorMessage(organizationsQuery.error)}
               onRetry={() => void organizationsQuery.refetch()}
             />
           ) : null}
@@ -189,7 +190,7 @@ function RepositoriesPage() {
           {(organizations?.length ?? 0) > 0 && repositoriesQuery.isError ? (
             <ErrorState
               title="Could not load repositories"
-              message={repositoriesQuery.error instanceof Error ? repositoriesQuery.error.message : "Unknown error"}
+              message={getErrorMessage(repositoriesQuery.error)}
               onRetry={() => void repositoriesQuery.refetch()}
             />
           ) : null}

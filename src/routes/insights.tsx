@@ -11,6 +11,7 @@ import { useInsightsQuery, useDismissInsightMutation, useReopenInsightMutation, 
 import { getDashboardDateRangeForPreset, getDashboardPresetFromRange } from "@/features/dashboard/dashboard.utils";
 import { useOrganizationsQuery } from "@/features/organizations/use-organizations-query";
 import { useRepositoriesListQuery } from "@/features/repositories/repositories.query";
+import { getErrorMessage } from "@/lib/api-errors";
 import { rootRoute } from "@/routes/root";
 
 const defaultRange = getDashboardDateRangeForPreset(30);
@@ -204,7 +205,7 @@ function InsightsPage() {
           {insightsQuery.isError ? (
             <ErrorState
               title="Could not load insights"
-              message={insightsQuery.error instanceof Error ? insightsQuery.error.message : "Unknown error"}
+              message={getErrorMessage(insightsQuery.error)}
               onRetry={() => void insightsQuery.refetch()}
             />
           ) : null}

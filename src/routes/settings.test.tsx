@@ -16,7 +16,12 @@ function jsonResponse(status: number, body?: unknown) {
   };
 }
 
-function createSettingsFetchStub() {
+function createSettingsFetchStub(options?: {
+  connectionState?: "not_connected" | "installation_required" | "connected" | "syncing" | "sync_failed";
+  accessibleSelectionStatus?: "not_selected" | "selected" | "syncing" | "sync_failed" | "synced";
+  accessibleInstallationStatus?: "accessible" | "not_installed" | "suspended";
+  createSyncResponse?: { status: number; body: unknown };
+}) {
   return vi.fn().mockImplementation((input: string | URL, init?: RequestInit) => {
     const url = new URL(String(input));
     const method = init?.method ?? "GET";
@@ -74,7 +79,7 @@ function createSettingsFetchStub() {
           data: {
             organizationId,
             provider: "github",
-            state: "connected",
+            state: options?.connectionState ?? "connected",
             connectedRepositories: 1,
             accountLogin: "devlens-labs",
             lastSyncedAt: "2026-08-12T00:00:00Z",
@@ -116,8 +121,8 @@ function createSettingsFetchStub() {
               fullName: "devlens-labs/devlens-api",
               private: true,
               defaultBranch: "main",
-              installationStatus: "accessible",
-              selectionStatus: "selected",
+              installationStatus: options?.accessibleInstallationStatus ?? "accessible",
+              selectionStatus: options?.accessibleSelectionStatus ?? "selected",
             },
           ],
           pagination: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
@@ -194,6 +199,10 @@ function createSettingsFetchStub() {
     }
 
     if (url.pathname === `/api/v1/repositories/${repositoryId}/sync` && method === "POST") {
+      if (options?.createSyncResponse) {
+        return Promise.resolve(jsonResponse(options.createSyncResponse.status, options.createSyncResponse.body));
+      }
+
       return Promise.resolve(
         jsonResponse(202, {
           data: {
@@ -297,5 +306,35 @@ describe("settings route", () => {
     expect(
       fetchStub.mock.calls.some(([input]) => String(input).includes(`/organizations/${organizationId}/github/installations/callback?installation_id=999&setup_action=install`)),
     ).toBe(true);
+  });
+
+  it("blocks sync when repository onboarding is incomplete", async () => {
+    const fetchStub = createSettingsFetchStub({
+      accessibleSelectionStatus: "not_selected",
+      createSyncResponse: {
+        status: 409,
+        body: {
+          error: {
+            code: "REPOSITORY_ONBOARDING_REQUIRED",
+            message: "Repository must be selected from the GitHub installation before syncing",
+            requestId: "req-409",
+          },
+        },
+      },
+    });
+    vi.stubGlobal("fetch", fetchStub);
+
+    renderApp("/settings");
+
+    expect(await screen.findByText("Managed repository sync")).toBeInTheDocument();
+    expect(await screen.findByText("Repository selection is required before sync")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start incremental sync" })).toBeDisabled();
+    expect(
+      fetchStub.mock.calls.some((call) => {
+        const [input, requestInit] = call as [string | URL, RequestInit | undefined];
+        const url = new URL(String(input));
+        return url.pathname === `/api/v1/repositories/${repositoryId}/sync` && (requestInit?.method ?? "GET") === "POST";
+      }),
+    ).toBe(false);
   });
 });

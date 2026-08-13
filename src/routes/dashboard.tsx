@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { createRoute } from "@tanstack/react-router";
+import { createRoute, Link } from "@tanstack/react-router";
 import { z } from "zod";
 import { rootRoute } from "@/routes/root";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -27,6 +27,7 @@ import {
 } from "@/features/dashboard/dashboard.utils";
 import { useOrganizationsQuery } from "@/features/organizations/use-organizations-query";
 import { useRepositoriesListQuery } from "@/features/repositories/repositories.query";
+import { getErrorMessage } from "@/lib/api-errors";
 import { formatCount, formatDateRange, formatDurationMinutes, formatPercentage } from "@/lib/formatters";
 import type { EChartsOption } from "echarts";
 
@@ -83,8 +84,10 @@ function DashboardPage() {
   const repositories = repositoriesQuery.data?.data ?? [];
   const firstRepositoryId = repositories[0]?.id;
   const selectedRepositoryId = search.repositoryId ?? repositories[0]?.id;
+  const selectedRepository = repositories.find((repository) => repository.id === selectedRepositoryId);
   const selectedPreset = getDashboardPresetFromRange(search.from, search.to) ?? 30;
-  const dashboardParams = selectedRepositoryId
+  const repositoryMetricsReady = Boolean(selectedRepository?.lastSyncedAt);
+  const dashboardParams = selectedRepositoryId && repositoryMetricsReady
     ? {
         repositoryId: selectedRepositoryId,
         from: search.from,
@@ -295,7 +298,7 @@ function DashboardPage() {
           {organizationsQuery.isError ? (
             <ErrorState
               title="Could not load organizations"
-              message={organizationsQuery.error instanceof Error ? organizationsQuery.error.message : "Unknown error"}
+              message={getErrorMessage(organizationsQuery.error)}
               onRetry={() => void organizationsQuery.refetch()}
             />
           ) : null}
@@ -310,7 +313,7 @@ function DashboardPage() {
           {selectedOrganizationId && repositoriesQuery.isError ? (
             <ErrorState
               title="Could not load repositories"
-              message={repositoriesQuery.error instanceof Error ? repositoriesQuery.error.message : "Unknown error"}
+              message={getErrorMessage(repositoriesQuery.error)}
               onRetry={() => void repositoriesQuery.refetch()}
             />
           ) : null}
@@ -324,234 +327,254 @@ function DashboardPage() {
 
           {selectedRepositoryId ? (
             <div className="space-y-8">
-              <section className="space-y-4">
-                <div>
-                  <h2 className="text-2xl font-semibold">Summary</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Snapshot of repository workflow health for the selected date range.
-                  </p>
-                </div>
-                {summaryQuery.isError ? (
-                  <ErrorState
-                    title="Could not load dashboard summary"
-                    message={summaryQuery.error instanceof Error ? summaryQuery.error.message : "Unknown error"}
-                    onRetry={() => void summaryQuery.refetch()}
-                  />
-                ) : (
-                  <DashboardSummaryGrid summary={summaryQuery.data?.data} loading={summaryQuery.isLoading} />
-                )}
-              </section>
+              {!repositoryMetricsReady ? (
+                <EmptyState
+                  title="Repository data is not ready yet"
+                  description="This repository has not completed a successful sync yet, so dashboard metrics are unavailable. Start or retry sync from Settings first."
+                  action={
+                    <Button asChild variant="outline">
+                      <Link to="/settings">Open Settings</Link>
+                    </Button>
+                  }
+                />
+              ) : null}
 
-              <section className="grid gap-6 xl:grid-cols-2">
-                <div className="space-y-4">
-                  <div className="rounded-2xl border border-border/70 bg-background/60 p-5">
-                    <h2 className="text-xl font-semibold">Pull request metrics</h2>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Review cycle and pull request size indicators for engineering throughput.
-                    </p>
-                    {pullRequestQuery.isError ? (
-                      <div className="mt-4">
-                        <ErrorState
-                          title="Could not load pull request metrics"
-                          message={pullRequestQuery.error instanceof Error ? pullRequestQuery.error.message : "Unknown error"}
-                          onRetry={() => void pullRequestQuery.refetch()}
-                        />
-                      </div>
-                    ) : (
-                      <div className="mt-4 space-y-4">
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div className="rounded-xl border border-border/70 bg-card/70 p-4">
-                            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Average cycle time</p>
-                            <p className="mt-2 text-2xl font-semibold">
-                              {formatDurationMinutes(pullRequestQuery.data?.data.averageCycleTimeMinutes)}
-                            </p>
-                          </div>
-                          <div className="rounded-xl border border-border/70 bg-card/70 p-4">
-                            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Average files changed</p>
-                            <p className="mt-2 text-2xl font-semibold">
-                              {formatCount(pullRequestQuery.data?.data.averageFilesChanged, 1)}
-                            </p>
-                          </div>
-                          <div className="rounded-xl border border-border/70 bg-card/70 p-4">
-                            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Average additions</p>
-                            <p className="mt-2 text-2xl font-semibold">
-                              {formatCount(pullRequestQuery.data?.data.averageAdditions, 1)}
-                            </p>
-                          </div>
-                          <div className="rounded-xl border border-border/70 bg-card/70 p-4">
-                            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Average deletions</p>
-                            <p className="mt-2 text-2xl font-semibold">
-                              {formatCount(pullRequestQuery.data?.data.averageDeletions, 1)}
-                            </p>
-                          </div>
-                        </div>
-                        <EChartPanel
-                          title="PR cycle time trend"
-                          description="Trend of average pull request cycle time across the selected range."
-                          option={summaryOption}
-                          empty={(pullRequestQuery.data?.data.cycleTimeTrend.length ?? 0) === 0}
-                          loading={pullRequestQuery.isLoading}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="rounded-2xl border border-border/70 bg-background/60 p-5">
-                    <h2 className="text-xl font-semibold">Review metrics</h2>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Review wait time means how long a pull request waits before the first review response arrives.
-                    </p>
-                    {reviewQuery.isError ? (
-                      <div className="mt-4">
-                        <ErrorState
-                          title="Could not load review metrics"
-                          message={reviewQuery.error instanceof Error ? reviewQuery.error.message : "Unknown error"}
-                          onRetry={() => void reviewQuery.refetch()}
-                        />
-                      </div>
-                    ) : (
-                      <div className="mt-4 space-y-4">
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div className="rounded-xl border border-border/70 bg-card/70 p-4">
-                            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Average wait time</p>
-                            <p className="mt-2 text-2xl font-semibold">
-                              {formatDurationMinutes(reviewQuery.data?.data.averageWaitMinutes)}
-                            </p>
-                          </div>
-                          <div className="rounded-xl border border-border/70 bg-card/70 p-4">
-                            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Average review time</p>
-                            <p className="mt-2 text-2xl font-semibold">
-                              {formatDurationMinutes(reviewQuery.data?.data.averageReviewMinutes)}
-                            </p>
-                          </div>
-                          <div className="rounded-xl border border-border/70 bg-card/70 p-4 md:col-span-2">
-                            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Review coverage</p>
-                            <p className="mt-2 text-2xl font-semibold">
-                              {formatPercentage(reviewQuery.data?.data.reviewCoverage)}
-                            </p>
-                          </div>
-                        </div>
-                        <EChartPanel
-                          title="Review wait time trend"
-                          description="Trend of waiting time before a pull request receives its first review."
-                          option={reviewOption}
-                          empty={(reviewQuery.data?.data.waitTimeTrend.length ?? 0) === 0}
-                          loading={reviewQuery.isLoading}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </section>
-
-              <section className="rounded-2xl border border-border/70 bg-background/60 p-5">
-                <h2 className="text-xl font-semibold">Deployment metrics</h2>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Deployment throughput and failure signals for the selected repository.
-                </p>
-                {deploymentQuery.isError ? (
-                  <div className="mt-4">
-                    <ErrorState
-                      title="Could not load deployment metrics"
-                      message={deploymentQuery.error instanceof Error ? deploymentQuery.error.message : "Unknown error"}
-                      onRetry={() => void deploymentQuery.refetch()}
-                    />
-                  </div>
-                ) : (
-                  <div className="mt-4 space-y-4">
-                    <div className="grid gap-4 md:grid-cols-3">
-                      <div className="rounded-xl border border-border/70 bg-card/70 p-4">
-                        <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Deployment count</p>
-                        <p className="mt-2 text-2xl font-semibold">
-                          {formatCount(deploymentQuery.data?.data.deploymentCount)}
-                        </p>
-                      </div>
-                      <div className="rounded-xl border border-border/70 bg-card/70 p-4">
-                        <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Deployment frequency</p>
-                        <p className="mt-2 text-2xl font-semibold">
-                          {formatCount(deploymentQuery.data?.data.deploymentFrequency, 2)}
-                        </p>
-                      </div>
-                      <div className="rounded-xl border border-border/70 bg-card/70 p-4">
-                        <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Change failure rate</p>
-                        <p className="mt-2 text-2xl font-semibold">
-                          {formatPercentage(deploymentQuery.data?.data.changeFailureRate)}
-                        </p>
-                      </div>
-                    </div>
-                    <EChartPanel
-                      title="Deployment trend"
-                      description="Time-based deployment trend for the selected range. Empty output means no deployment data is available yet."
-                      option={deploymentOption}
-                      empty={(deploymentQuery.data?.data.deploymentTrend.length ?? 0) === 0}
-                      loading={deploymentQuery.isLoading}
-                      emptyTitle="No deployment data available"
-                      emptyDescription="The backend returned no deployment datapoints for this repository and range."
-                    />
-                  </div>
-                )}
-              </section>
-
-              <section className="rounded-2xl border border-border/70 bg-background/60 p-5">
-                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              {repositoryMetricsReady ? (
+                <section className="space-y-4">
                   <div>
-                    <h2 className="text-xl font-semibold">Hotspot files</h2>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Ranked files with the highest change volume and churn pressure.
+                    <h2 className="text-2xl font-semibold">Summary</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Snapshot of repository workflow health for the selected date range.
                     </p>
                   </div>
-                  {hotspotsQuery.data ? (
-                    <p className="text-sm text-muted-foreground">
-                      Page {hotspotsQuery.data.meta.page} / {Math.max(hotspotsQuery.data.meta.totalPages, 1)}
-                    </p>
-                  ) : null}
-                </div>
-
-                <div className="mt-4 space-y-4">
-                  {hotspotsQuery.isError ? (
+                  {summaryQuery.isError ? (
                     <ErrorState
-                      title="Could not load hotspot files"
-                      message={hotspotsQuery.error instanceof Error ? hotspotsQuery.error.message : "Unknown error"}
-                      onRetry={() => void hotspotsQuery.refetch()}
+                      title="Could not load dashboard summary"
+                      message={getErrorMessage(summaryQuery.error)}
+                      onRetry={() => void summaryQuery.refetch()}
                     />
-                  ) : null}
+                  ) : (
+                    <DashboardSummaryGrid summary={summaryQuery.data?.data} loading={summaryQuery.isLoading} />
+                  )}
+                </section>
+              ) : null}
 
-                  {hotspotsQuery.data && hotspotsQuery.data.data.length === 0 ? (
-                    <EmptyState
-                      title="No hotspot files available"
-                      description="The backend returned no hotspot files for the selected range."
-                    />
-                  ) : null}
+              {repositoryMetricsReady ? (
+                <section className="grid gap-6 xl:grid-cols-2">
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-border/70 bg-background/60 p-5">
+                      <h2 className="text-xl font-semibold">Pull request metrics</h2>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Review cycle and pull request size indicators for engineering throughput.
+                      </p>
+                      {pullRequestQuery.isError ? (
+                        <div className="mt-4">
+                          <ErrorState
+                            title="Could not load pull request metrics"
+                            message={getErrorMessage(pullRequestQuery.error)}
+                            onRetry={() => void pullRequestQuery.refetch()}
+                          />
+                        </div>
+                      ) : (
+                        <div className="mt-4 space-y-4">
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="rounded-xl border border-border/70 bg-card/70 p-4">
+                              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Average cycle time</p>
+                              <p className="mt-2 text-2xl font-semibold">
+                                {formatDurationMinutes(pullRequestQuery.data?.data.averageCycleTimeMinutes)}
+                              </p>
+                            </div>
+                            <div className="rounded-xl border border-border/70 bg-card/70 p-4">
+                              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Average files changed</p>
+                              <p className="mt-2 text-2xl font-semibold">
+                                {formatCount(pullRequestQuery.data?.data.averageFilesChanged, 1)}
+                              </p>
+                            </div>
+                            <div className="rounded-xl border border-border/70 bg-card/70 p-4">
+                              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Average additions</p>
+                              <p className="mt-2 text-2xl font-semibold">
+                                {formatCount(pullRequestQuery.data?.data.averageAdditions, 1)}
+                              </p>
+                            </div>
+                            <div className="rounded-xl border border-border/70 bg-card/70 p-4">
+                              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Average deletions</p>
+                              <p className="mt-2 text-2xl font-semibold">
+                                {formatCount(pullRequestQuery.data?.data.averageDeletions, 1)}
+                              </p>
+                            </div>
+                          </div>
+                          <EChartPanel
+                            title="PR cycle time trend"
+                            description="Trend of average pull request cycle time across the selected range."
+                            option={summaryOption}
+                            empty={(pullRequestQuery.data?.data.cycleTimeTrend.length ?? 0) === 0}
+                            loading={pullRequestQuery.isLoading}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-                  {hotspotsQuery.data && hotspotsQuery.data.data.length > 0 ? (
-                    <>
-                      <DashboardHotspotsTable hotspots={hotspotsQuery.data.data} />
-                      <div className="flex items-center justify-between">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={search.hotspotPage <= 1}
-                          onClick={() => updateSearch({ hotspotPage: search.hotspotPage - 1 })}
-                        >
-                          Previous page
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={
-                            hotspotsQuery.data.meta.page >= Math.max(hotspotsQuery.data.meta.totalPages, 1)
-                          }
-                          onClick={() => updateSearch({ hotspotPage: search.hotspotPage + 1 })}
-                        >
-                          Next page
-                        </Button>
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-border/70 bg-background/60 p-5">
+                      <h2 className="text-xl font-semibold">Review metrics</h2>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Review wait time means how long a pull request waits before the first review response arrives.
+                      </p>
+                      {reviewQuery.isError ? (
+                        <div className="mt-4">
+                          <ErrorState
+                            title="Could not load review metrics"
+                            message={getErrorMessage(reviewQuery.error)}
+                            onRetry={() => void reviewQuery.refetch()}
+                          />
+                        </div>
+                      ) : (
+                        <div className="mt-4 space-y-4">
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="rounded-xl border border-border/70 bg-card/70 p-4">
+                              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Average wait time</p>
+                              <p className="mt-2 text-2xl font-semibold">
+                                {formatDurationMinutes(reviewQuery.data?.data.averageWaitMinutes)}
+                              </p>
+                            </div>
+                            <div className="rounded-xl border border-border/70 bg-card/70 p-4">
+                              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Average review time</p>
+                              <p className="mt-2 text-2xl font-semibold">
+                                {formatDurationMinutes(reviewQuery.data?.data.averageReviewMinutes)}
+                              </p>
+                            </div>
+                            <div className="rounded-xl border border-border/70 bg-card/70 p-4 md:col-span-2">
+                              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Review coverage</p>
+                              <p className="mt-2 text-2xl font-semibold">
+                                {formatPercentage(reviewQuery.data?.data.reviewCoverage)}
+                              </p>
+                            </div>
+                          </div>
+                          <EChartPanel
+                            title="Review wait time trend"
+                            description="Trend of waiting time before a pull request receives its first review."
+                            option={reviewOption}
+                            empty={(reviewQuery.data?.data.waitTimeTrend.length ?? 0) === 0}
+                            loading={reviewQuery.isLoading}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </section>
+              ) : null}
+
+              {repositoryMetricsReady ? (
+                <section className="rounded-2xl border border-border/70 bg-background/60 p-5">
+                  <h2 className="text-xl font-semibold">Deployment metrics</h2>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Deployment throughput and failure signals for the selected repository.
+                  </p>
+                  {deploymentQuery.isError ? (
+                    <div className="mt-4">
+                      <ErrorState
+                        title="Could not load deployment metrics"
+                        message={getErrorMessage(deploymentQuery.error)}
+                        onRetry={() => void deploymentQuery.refetch()}
+                      />
+                    </div>
+                  ) : (
+                    <div className="mt-4 space-y-4">
+                      <div className="grid gap-4 md:grid-cols-3">
+                        <div className="rounded-xl border border-border/70 bg-card/70 p-4">
+                          <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Deployment count</p>
+                          <p className="mt-2 text-2xl font-semibold">
+                            {formatCount(deploymentQuery.data?.data.deploymentCount)}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-border/70 bg-card/70 p-4">
+                          <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Deployment frequency</p>
+                          <p className="mt-2 text-2xl font-semibold">
+                            {formatCount(deploymentQuery.data?.data.deploymentFrequency, 2)}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-border/70 bg-card/70 p-4">
+                          <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Change failure rate</p>
+                          <p className="mt-2 text-2xl font-semibold">
+                            {formatPercentage(deploymentQuery.data?.data.changeFailureRate)}
+                          </p>
+                        </div>
                       </div>
-                    </>
-                  ) : null}
-                </div>
-              </section>
+                      <EChartPanel
+                        title="Deployment trend"
+                        description="Time-based deployment trend for the selected range. Empty output means no deployment data is available yet."
+                        option={deploymentOption}
+                        empty={(deploymentQuery.data?.data.deploymentTrend.length ?? 0) === 0}
+                        loading={deploymentQuery.isLoading}
+                        emptyTitle="No deployment data available"
+                        emptyDescription="The backend returned no deployment datapoints for this repository and range."
+                      />
+                    </div>
+                  )}
+                </section>
+              ) : null}
+
+              {repositoryMetricsReady ? (
+                <section className="rounded-2xl border border-border/70 bg-background/60 p-5">
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold">Hotspot files</h2>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Ranked files with the highest change volume and churn pressure.
+                      </p>
+                    </div>
+                    {hotspotsQuery.data ? (
+                      <p className="text-sm text-muted-foreground">
+                        Page {hotspotsQuery.data.meta.page} / {Math.max(hotspotsQuery.data.meta.totalPages, 1)}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-4 space-y-4">
+                    {hotspotsQuery.isError ? (
+                      <ErrorState
+                        title="Could not load hotspot files"
+                        message={getErrorMessage(hotspotsQuery.error)}
+                        onRetry={() => void hotspotsQuery.refetch()}
+                      />
+                    ) : null}
+
+                    {hotspotsQuery.data && hotspotsQuery.data.data.length === 0 ? (
+                      <EmptyState
+                        title="No hotspot files available"
+                        description="The backend returned no hotspot files for the selected range."
+                      />
+                    ) : null}
+
+                    {hotspotsQuery.data && hotspotsQuery.data.data.length > 0 ? (
+                      <>
+                        <DashboardHotspotsTable hotspots={hotspotsQuery.data.data} />
+                        <div className="flex items-center justify-between">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={search.hotspotPage <= 1}
+                            onClick={() => updateSearch({ hotspotPage: search.hotspotPage - 1 })}
+                          >
+                            Previous page
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={
+                              hotspotsQuery.data.meta.page >= Math.max(hotspotsQuery.data.meta.totalPages, 1)
+                            }
+                            onClick={() => updateSearch({ hotspotPage: search.hotspotPage + 1 })}
+                          >
+                            Next page
+                          </Button>
+                        </div>
+                      </>
+                    ) : null}
+                  </div>
+                </section>
+              ) : null}
             </div>
           ) : null}
         </div>

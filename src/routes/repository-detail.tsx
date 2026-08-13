@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/shared/query-state";
 import { Button } from "@/components/ui/button";
 import { useRepositoryDetailQuery } from "@/features/repositories/repositories.query";
+import { getErrorMessage } from "@/lib/api-errors";
 import { ApiError } from "@/lib/api-client";
 import { rootRoute } from "@/routes/root";
 
@@ -56,7 +57,7 @@ function RepositoryDetailPage() {
             ) : (
               <ErrorState
                 title="Could not load repository detail"
-                message={repositoryQuery.error instanceof Error ? repositoryQuery.error.message : "Unknown error"}
+                message={getErrorMessage(repositoryQuery.error)}
                 onRetry={() => void repositoryQuery.refetch()}
               />
             )

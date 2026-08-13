@@ -6,6 +6,7 @@ import { EmptyState, ErrorState } from "@/components/shared/query-state";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePullRequestDetailQuery } from "@/features/pull-requests/pull-requests.query";
+import { getErrorMessage } from "@/lib/api-errors";
 import { ApiError } from "@/lib/api-client";
 import { rootRoute } from "@/routes/root";
 
@@ -47,7 +48,7 @@ function PullRequestDetailPage() {
             ) : (
               <ErrorState
                 title="Could not load pull request detail"
-                message={pullRequestQuery.error instanceof Error ? pullRequestQuery.error.message : "Unknown error"}
+                message={getErrorMessage(pullRequestQuery.error)}
                 onRetry={() => void pullRequestQuery.refetch()}
               />
             )

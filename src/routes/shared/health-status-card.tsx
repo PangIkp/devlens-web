@@ -1,4 +1,5 @@
 import { useHealthQuery } from "@/features/health/use-health-query";
+import { getErrorMessage } from "@/lib/api-errors";
 
 export function HealthStatusCard() {
   const { data, isLoading, isError, error } = useHealthQuery();
@@ -9,9 +10,9 @@ export function HealthStatusCard() {
 
   if (isError) {
     return (
-      <div className="space-y-2">
+        <div className="space-y-2">
         <p className="text-sm font-medium text-accent">Backend connection not available</p>
-        <p className="text-sm text-muted-foreground">{error instanceof Error ? error.message : "Unknown error"}</p>
+        <p className="text-sm text-muted-foreground">{getErrorMessage(error)}</p>
       </div>
     );
   }

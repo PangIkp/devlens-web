@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useLoginMutation } from "@/features/auth/auth.query";
 import { useAuthStore } from "@/features/auth/auth.store";
+import { getErrorMessage } from "@/lib/api-errors";
 import { rootRoute } from "@/routes/root";
 
 const loginSearchSchema = z.object({
@@ -72,7 +73,7 @@ function LoginPage() {
 
               {loginMutation.isError ? (
                 <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-                  {loginMutation.error instanceof Error ? loginMutation.error.message : "Could not create a local session"}
+                  {getErrorMessage(loginMutation.error)}
                 </div>
               ) : null}
 

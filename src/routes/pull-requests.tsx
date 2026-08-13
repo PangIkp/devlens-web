@@ -11,6 +11,7 @@ import { Select } from "@/components/ui/select";
 import { useOrganizationsQuery } from "@/features/organizations/use-organizations-query";
 import { usePullRequestsQuery } from "@/features/pull-requests/pull-requests.query";
 import { useRepositoriesListQuery } from "@/features/repositories/repositories.query";
+import { getErrorMessage } from "@/lib/api-errors";
 import { rootRoute } from "@/routes/root";
 
 const pullRequestsSearchSchema = z.object({
@@ -168,7 +169,7 @@ function PullRequestsPage() {
           {pullRequestsQuery.isError ? (
             <ErrorState
               title="Could not load pull requests"
-              message={pullRequestsQuery.error instanceof Error ? pullRequestsQuery.error.message : "Unknown error"}
+              message={getErrorMessage(pullRequestsQuery.error)}
               onRetry={() => void pullRequestsQuery.refetch()}
             />
           ) : null}

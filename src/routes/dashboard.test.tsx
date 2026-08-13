@@ -22,6 +22,7 @@ function createDashboardFetchStub(options?: {
   deploymentData?: unknown;
   hotspotData?: unknown[];
   hotspotMeta?: unknown;
+  repositoryLastSyncedAt?: string | null;
 }) {
   return vi.fn().mockImplementation((input: string | URL) => {
     const url = new URL(String(input));
@@ -61,7 +62,7 @@ function createDashboardFetchStub(options?: {
               defaultBranch: "main",
               isActive: true,
               archivedAt: null,
-              lastSyncedAt: "2026-08-12T00:00:00Z",
+              lastSyncedAt: options?.repositoryLastSyncedAt ?? "2026-08-12T00:00:00Z",
               createdAt: "2026-08-10T10:00:00Z",
               updatedAt: "2026-08-12T00:00:00Z",
             },
@@ -302,6 +303,16 @@ describe("dashboard route", () => {
     renderApp("/dashboard");
 
     expect(await screen.findByText("Could not load dashboard summary")).toBeInTheDocument();
+  });
+
+  it("shows an unsynced repository state before querying dashboard metrics", async () => {
+    const fetchStub = createDashboardFetchStub({ repositoryLastSyncedAt: null });
+    vi.stubGlobal("fetch", fetchStub);
+
+    renderApp(`/dashboard?organizationId=${organizationId}&repositoryId=${repositoryId}`);
+
+    expect(await screen.findByText("Repository data is not ready yet")).toBeInTheDocument();
+    expect(fetchStub.mock.calls.some(([input]) => String(input).includes("/dashboard/summary"))).toBe(false);
   });
 
   it("keeps other sections visible when one API fails", async () => {

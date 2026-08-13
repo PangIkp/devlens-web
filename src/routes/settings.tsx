@@ -37,6 +37,7 @@ import {
   useSyncJobDetailQuery,
 } from "@/features/sync/sync.query";
 import { useMeQuery } from "@/features/users/users.query";
+import { getApiErrorCode, getErrorMessage } from "@/lib/api-errors";
 import { rootRoute } from "@/routes/root";
 
 const settingsSearchSchema = z.object({
@@ -106,6 +107,10 @@ function getSyncTone(status: string) {
   }
 
   return "info" as const;
+}
+
+function scrollToSection(sectionId: string) {
+  document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function SettingsPage() {
@@ -263,12 +268,31 @@ function SettingsPage() {
 
   const activeSyncJob = syncJobDetailQuery.data?.data;
   const installUrl = startInstallationMutation.data?.data.installUrl;
+  const connectionState = githubConnectionQuery.data?.data.state;
+  const repositorySyncReady = connectionState === "connected" || connectionState === "syncing" || connectionState === "sync_failed";
+  const selectedManagedRepository = managedRepositories.find((repository) => repository.id === selectedRepositoryId);
+  const selectedAccessibleRepository = (accessibleRepositoriesQuery.data?.data ?? []).find(
+    (repository) => String(repository.githubRepositoryId) === selectedManagedRepository?.githubId,
+  );
+  const selectedRepositoryNeedsOnboarding = selectedAccessibleRepository?.selectionStatus === "not_selected";
+  const selectedRepositoryAccessUnavailable =
+    selectedAccessibleRepository !== undefined && selectedAccessibleRepository.installationStatus !== "accessible";
+  const syncActionReady =
+    repositorySyncReady &&
+    !selectedRepositoryNeedsOnboarding &&
+    !selectedRepositoryAccessUnavailable &&
+    Boolean(selectedRepositoryId);
+  const createSyncErrorCode = getApiErrorCode(createSyncMutation.error);
 
   const accessibleSelectionSummary = useMemo(() => {
     return selectedAccessibleRepositoryIds.length === 0
       ? "No repositories selected for onboarding yet."
       : `${selectedAccessibleRepositoryIds.length} accessible repositories selected for connection.`;
   }, [selectedAccessibleRepositoryIds.length]);
+
+  useEffect(() => {
+    createSyncMutation.reset();
+  }, [createSyncMutation, selectedOrganizationId, selectedRepositoryId]);
 
   function updateSearch(next: Partial<typeof search>) {
     void navigate({
@@ -337,7 +361,7 @@ function SettingsPage() {
               {meQuery.isError ? (
                 <ErrorState
                   title="Could not load current user"
-                  message={meQuery.error instanceof Error ? meQuery.error.message : "Unknown error"}
+                  message={getErrorMessage(meQuery.error)}
                   onRetry={() => void meQuery.refetch()}
                 />
               ) : null}
@@ -450,7 +474,7 @@ function SettingsPage() {
           </section>
 
           <section className="grid gap-6 xl:grid-cols-2">
-            <Card className="space-y-4">
+            <Card id="github-connection" className="space-y-4">
               <div>
                 <h2 className="text-xl font-semibold">GitHub connection</h2>
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -460,7 +484,7 @@ function SettingsPage() {
               {githubConnectionQuery.isError ? (
                 <ErrorState
                   title="Could not load GitHub connection"
-                  message={githubConnectionQuery.error instanceof Error ? githubConnectionQuery.error.message : "Unknown error"}
+                  message={getErrorMessage(githubConnectionQuery.error)}
                   onRetry={() => void githubConnectionQuery.refetch()}
                 />
               ) : null}
@@ -509,7 +533,7 @@ function SettingsPage() {
               ) : null}
             </Card>
 
-            <Card className="space-y-4">
+            <Card id="accessible-repositories" className="space-y-4">
               <div>
                 <h2 className="text-xl font-semibold">Accessible repositories</h2>
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -520,7 +544,7 @@ function SettingsPage() {
               {accessibleRepositoriesQuery.isError ? (
                 <ErrorState
                   title="Could not load accessible repositories"
-                  message={accessibleRepositoriesQuery.error instanceof Error ? accessibleRepositoriesQuery.error.message : "Unknown error"}
+                  message={getErrorMessage(accessibleRepositoriesQuery.error)}
                   onRetry={() => void accessibleRepositoriesQuery.refetch()}
                 />
               ) : null}
@@ -611,6 +635,7 @@ function SettingsPage() {
                 <Select
                   aria-label="Managed repository"
                   value={selectedRepositoryId ?? ""}
+                  disabled={!repositorySyncReady || managedRepositories.length === 0}
                   onChange={(event) => updateSearch({ repositoryId: event.target.value, syncJobId: undefined, syncPage: 1 })}
                 >
                   {managedRepositories.map((repository) => (
@@ -619,18 +644,88 @@ function SettingsPage() {
                     </option>
                   ))}
                 </Select>
-                <Button type="button" variant="outline" onClick={() => selectedRepositoryId && createSyncMutation.mutate({ repositoryId: selectedRepositoryId, mode: "incremental" })}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!syncActionReady}
+                  onClick={() => selectedRepositoryId && createSyncMutation.mutate({ repositoryId: selectedRepositoryId, mode: "incremental" })}
+                >
                   Start incremental sync
                 </Button>
-                <Button type="button" onClick={() => selectedRepositoryId && createSyncMutation.mutate({ repositoryId: selectedRepositoryId, mode: "full" })}>
+                <Button
+                  type="button"
+                  disabled={!syncActionReady}
+                  onClick={() => selectedRepositoryId && createSyncMutation.mutate({ repositoryId: selectedRepositoryId, mode: "full" })}
+                >
                   Start full sync
                 </Button>
               </div>
 
+              {!repositorySyncReady ? (
+                <EmptyState
+                  title="Repository sync is locked until onboarding is complete"
+                  description="Complete GitHub installation first. This organization is not connected yet, so the backend will reject sync until installation is finished."
+                />
+              ) : null}
+
+              {repositorySyncReady && selectedRepositoryNeedsOnboarding ? (
+                <EmptyState
+                  title="Repository selection is required before sync"
+                  description="This repository exists in DevLens, but it has not been selected from the GitHub installation yet. Finish repository onboarding in the accessible repositories section first."
+                  action={
+                    <Button type="button" variant="outline" onClick={() => scrollToSection("accessible-repositories")}>
+                      Review accessible repositories
+                    </Button>
+                  }
+                />
+              ) : null}
+
+              {repositorySyncReady && selectedRepositoryAccessUnavailable ? (
+                <EmptyState
+                  title="GitHub installation access is unavailable"
+                  description="The current GitHub installation no longer exposes this repository. Re-run installation or repository selection before starting sync."
+                  action={
+                    <Button type="button" variant="outline" onClick={() => scrollToSection("github-connection")}>
+                      Review GitHub connection
+                    </Button>
+                  }
+                />
+              ) : null}
+
+              {createSyncMutation.isError && createSyncErrorCode === "GITHUB_INSTALLATION_REQUIRED" ? (
+                <EmptyState
+                  title="GitHub installation is required before sync"
+                  description={getErrorMessage(createSyncMutation.error)}
+                  action={
+                    <Button type="button" onClick={() => selectedOrganizationId && startInstallationMutation.mutate(window.location.href)}>
+                      Start GitHub install
+                    </Button>
+                  }
+                />
+              ) : null}
+
+              {createSyncMutation.isError && createSyncErrorCode === "REPOSITORY_ONBOARDING_REQUIRED" ? (
+                <EmptyState
+                  title="Repository onboarding is required before sync"
+                  description={getErrorMessage(createSyncMutation.error)}
+                  action={
+                    <Button type="button" variant="outline" onClick={() => scrollToSection("accessible-repositories")}>
+                      Finish repository onboarding
+                    </Button>
+                  }
+                />
+              ) : null}
+
+              {createSyncMutation.isError &&
+              createSyncErrorCode !== "GITHUB_INSTALLATION_REQUIRED" &&
+              createSyncErrorCode !== "REPOSITORY_ONBOARDING_REQUIRED" ? (
+                <ErrorState title="Could not start repository sync" message={getErrorMessage(createSyncMutation.error)} />
+              ) : null}
+
               {syncJobsQuery.isError ? (
                 <ErrorState
                   title="Could not load sync jobs"
-                  message={syncJobsQuery.error instanceof Error ? syncJobsQuery.error.message : "Unknown error"}
+                  message={getErrorMessage(syncJobsQuery.error)}
                   onRetry={() => void syncJobsQuery.refetch()}
                 />
               ) : null}
@@ -682,7 +777,7 @@ function SettingsPage() {
               {syncJobDetailQuery.isError ? (
                 <ErrorState
                   title="Could not load sync job detail"
-                  message={syncJobDetailQuery.error instanceof Error ? syncJobDetailQuery.error.message : "Unknown error"}
+                  message={getErrorMessage(syncJobDetailQuery.error)}
                   onRetry={() => void syncJobDetailQuery.refetch()}
                 />
               ) : null}
@@ -737,7 +832,7 @@ function SettingsPage() {
               {organizationMembersQuery.isError ? (
                 <ErrorState
                   title="Could not load organization members"
-                  message={organizationMembersQuery.error instanceof Error ? organizationMembersQuery.error.message : "Unknown error"}
+                  message={getErrorMessage(organizationMembersQuery.error)}
                   onRetry={() => void organizationMembersQuery.refetch()}
                 />
               ) : null}
