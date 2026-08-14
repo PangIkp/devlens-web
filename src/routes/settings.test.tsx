@@ -79,6 +79,7 @@ function createSettingsFetchStub(options?: {
   accessibleTwoPages?: boolean;
 }) {
   let organizationDeleted = false;
+  let repositoryIsActive = true;
 
   return vi
     .fn()
@@ -313,7 +314,7 @@ function createSettingsFetchStub(options?: {
                 name: "devlens-api",
                 fullName: "devlens-labs/devlens-api",
                 defaultBranch: "main",
-                isActive: true,
+                isActive: repositoryIsActive,
                 archivedAt: null,
                 lastSyncedAt: "2026-08-12T00:00:00Z",
                 createdAt: "2026-08-10T10:00:00Z",
@@ -325,6 +326,33 @@ function createSettingsFetchStub(options?: {
               pageSize: 100,
               totalItems: 1,
               totalPages: 1,
+            },
+          }),
+        );
+      }
+
+      if (
+        url.pathname === `/api/v1/repositories/${repositoryId}` &&
+        method === "PATCH"
+      ) {
+        const body = init?.body ? (JSON.parse(String(init.body)) as { isActive?: boolean }) : {};
+        if (typeof body.isActive === "boolean") {
+          repositoryIsActive = body.isActive;
+        }
+        return Promise.resolve(
+          jsonResponse(200, {
+            data: {
+              id: repositoryId,
+              organizationId,
+              githubId: 1001,
+              name: "devlens-api",
+              fullName: "devlens-labs/devlens-api",
+              defaultBranch: "main",
+              isActive: repositoryIsActive,
+              archivedAt: null,
+              lastSyncedAt: "2026-08-12T00:00:00Z",
+              createdAt: "2026-08-10T10:00:00Z",
+              updatedAt: "2026-08-12T00:00:00Z",
             },
           }),
         );
@@ -495,7 +523,9 @@ function createSettingsFetchStub(options?: {
 
 describe("settings route", () => {
   it("renders settings data and triggers backend actions", async () => {
-    const fetchStub = createSettingsFetchStub();
+    const fetchStub = createSettingsFetchStub({
+      accessibleSelectionStatus: "not_selected",
+    });
     vi.stubGlobal("fetch", fetchStub);
     const user = userEvent.setup();
 
@@ -505,6 +535,7 @@ describe("settings route", () => {
     expect(screen.getByText("DevLens Labs")).toBeInTheDocument();
 
     await user.click(await screen.findByRole("tab", { name: "GitHub" }));
+    await user.click(await screen.findByRole("checkbox"));
     await user.click(
       screen.getByRole("button", { name: "Connect selected repositories" }),
     );
@@ -541,6 +572,20 @@ describe("settings route", () => {
       ),
     ).toBe(true);
   }, 15000);
+
+  it("does not show a checkbox for an already-connected accessible repository", async () => {
+    const fetchStub = createSettingsFetchStub({
+      accessibleSelectionStatus: "selected",
+    });
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+
+    renderApp("/settings");
+
+    await user.click(await screen.findByRole("tab", { name: "GitHub" }));
+    expect(await screen.findByText("devlens-labs/devlens-api")).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  });
 
   it("handles installation callback search params, including the required state token", async () => {
     const fetchStub = createSettingsFetchStub();
@@ -857,6 +902,41 @@ describe("settings route", () => {
     // repo (2002) was never checked, and page 1's pick must survive
     // navigating to page 2 rather than being silently dropped.
     expect(body.repositoryIds).toEqual([2001]);
+  });
+
+  it("deactivates a managed repository after a confirmation step", async () => {
+    const fetchStub = createSettingsFetchStub();
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+
+    renderApp("/settings");
+
+    await user.click(await screen.findByRole("tab", { name: "Sync" }));
+    expect(await screen.findByText("Managed repository sync")).toBeInTheDocument();
+    expect(screen.getByText("Active")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Deactivate repository" }));
+    await user.click(screen.getByRole("button", { name: "Confirm deactivate" }));
+
+    expect(await screen.findByText("Repository deactivated")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(await screen.findByText("Inactive")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Reactivate repository" }),
+    ).toBeInTheDocument();
+
+    const patchCall = fetchStub.mock.calls.find(([input], index) => {
+      const init = fetchStub.mock.calls[index][1] as RequestInit | undefined;
+      return (
+        String(input).endsWith(`/repositories/${repositoryId}`) &&
+        init?.method === "PATCH"
+      );
+    });
+    expect(patchCall).toBeDefined();
+    const body = JSON.parse(
+      (patchCall?.[1] as RequestInit).body as string,
+    ) as { isActive: boolean };
+    expect(body).toEqual({ isActive: false });
   });
 
   it("blocks sync when repository onboarding is incomplete", async () => {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { createRoute } from "@tanstack/react-router";
-import { ChevronLeft, ChevronRight, Plus, Search, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Plus, Search, X } from "lucide-react";
 import { z } from "zod";
 import { AppLayout } from "@/components/layout/app-layout";
 import { PageShell } from "@/components/layout/page-shell";
@@ -46,7 +46,7 @@ import {
   useUpdateOrganizationMemberMutation,
   useUpdateOrganizationMutation,
 } from "@/features/organizations/use-organizations-query";
-import { useRepositoriesListQuery } from "@/features/repositories/repositories.query";
+import { useRepositoriesListQuery, useUpdateRepositoryMutation } from "@/features/repositories/repositories.query";
 import {
   useCancelSyncJobMutation,
   useCreateRepositorySyncMutation,
@@ -285,6 +285,7 @@ function SettingsPage() {
   const createMemberMutation = useCreateOrganizationMemberMutation();
   const updateMemberMutation = useUpdateOrganizationMemberMutation();
   const deleteMemberMutation = useDeleteOrganizationMemberMutation();
+  const updateRepositoryMutation = useUpdateRepositoryMutation();
 
   const [accessibleSearchInput, setAccessibleSearchInput] = useState(
     search.accessibleSearch ?? "",
@@ -292,6 +293,8 @@ function SettingsPage() {
   const [callbackKey, setCallbackKey] = useState<string | null>(null);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const [confirmDeleteOrganization, setConfirmDeleteOrganization] =
+    useState(false);
+  const [confirmDeactivateRepository, setConfirmDeactivateRepository] =
     useState(false);
   const [createOrgDialogOpen, setCreateOrgDialogOpen] = useState(false);
   const [selectedAccessibleRepositoryIds, setSelectedAccessibleRepositoryIds] =
@@ -419,19 +422,6 @@ function SettingsPage() {
   }, [organizationMembersQuery.data]);
 
   useEffect(() => {
-    // Merge rather than replace: accessible repositories are paginated, and
-    // this effect re-runs on every page change. Replacing the selection
-    // outright would silently discard checkboxes the user ticked on a page
-    // they've since navigated away from.
-    const alreadySelected = (accessibleRepositoriesQuery.data?.data ?? [])
-      .filter((repository) => repository.selectionStatus !== "not_selected")
-      .map((repository) => repository.githubRepositoryId);
-    setSelectedAccessibleRepositoryIds((current) =>
-      Array.from(new Set([...current, ...alreadySelected])),
-    );
-  }, [accessibleRepositoriesQuery.data]);
-
-  useEffect(() => {
     const nextCallbackKey =
       selectedOrganizationId && search.installation_id && search.state
         ? `${selectedOrganizationId}:${search.installation_id}:${search.state}:${search.setup_action ?? ""}`
@@ -494,7 +484,10 @@ function SettingsPage() {
 
   useEffect(() => {
     createSyncMutation.reset();
-  }, [createSyncMutation, selectedOrganizationId, selectedRepositoryId]);
+    updateRepositoryMutation.reset();
+    setConfirmDeactivateRepository(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedOrganizationId, selectedRepositoryId]);
 
   function updateSearch(next: Partial<typeof search>) {
     void navigate({
@@ -508,10 +501,11 @@ function SettingsPage() {
   return (
     <AppLayout>
       <PageShell unwrapped>
-        <div className="space-y-8">
-          <p className="text-sm font-medium uppercase tracking-[0.35em] text-accent">
+        <div className="flex h-full min-h-0 flex-col space-y-8">
+          <p className="shrink-0 text-sm font-medium uppercase tracking-[0.35em] text-accent">
             Settings
           </p>
+          <div className="min-h-0 flex-1">
           {organizationsQuery.isLoading ? (
             <SettingsSkeleton />
           ) : organizations.length === 0 ? (
@@ -529,7 +523,59 @@ function SettingsPage() {
               }
             />
           ) : (
-            <>
+            <Tabs
+              value={activeTab}
+              onValueChange={(value) => {
+                updateSearch({ tab: value as SettingsTab });
+                // Every query above is mounted once at the page level, not
+                // inside each tab's content, so switching tabs alone never
+                // re-fetches them — force a refetch for whichever tab just
+                // became active so its data can't silently go stale.
+                // refetch() bypasses each query's own `enabled` gate (it
+                // calls fetch() directly, regardless of `enabled`), so
+                // every branch re-checks the same condition the query was
+                // declared with — otherwise e.g. an org with no GitHub
+                // installation yet would still fire the accessible-repos
+                // request and surface a raw "installation not found" 404.
+                if (!selectedOrganizationId) {
+                  return;
+                }
+                switch (value as SettingsTab) {
+                  case "organization":
+                    void organizationDetailQuery.refetch();
+                    break;
+                  case "github":
+                    void githubConnectionQuery.refetch();
+                    if (
+                      ["connected", "syncing", "sync_failed"].includes(
+                        githubConnectionQuery.data?.data.state ?? "",
+                      )
+                    ) {
+                      void accessibleRepositoriesQuery.refetch();
+                    }
+                    break;
+                  case "sync":
+                    void managedRepositoriesQuery.refetch();
+                    if (selectedRepositoryId) {
+                      void syncJobsQuery.refetch();
+                    }
+                    break;
+                  case "members":
+                    void organizationMembersQuery.refetch();
+                    break;
+                  case "rules":
+                    void queryClient.refetchQueries({
+                      queryKey: organizationSettingsKeys.rules(selectedOrganizationId),
+                    });
+                    void queryClient.refetchQueries({
+                      queryKey: organizationSettingsKeys.retention(selectedOrganizationId),
+                    });
+                    break;
+                }
+              }}
+              className="flex h-full min-h-0 flex-col space-y-6"
+            >
+            <div className="shrink-0 space-y-4 border-b border-border/60 pb-6">
               <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_auto]">
                 <label className="space-y-2">
                   <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">
@@ -585,66 +631,17 @@ function SettingsPage() {
                 ) : null}
               </div>
 
-              <Tabs
-                value={activeTab}
-                onValueChange={(value) => {
-                  updateSearch({ tab: value as SettingsTab });
-                  // Every query above is mounted once at the page level, not
-                  // inside each tab's content, so switching tabs alone never
-                  // re-fetches them — force a refetch for whichever tab just
-                  // became active so its data can't silently go stale.
-                  // refetch() bypasses each query's own `enabled` gate (it
-                  // calls fetch() directly, regardless of `enabled`), so
-                  // every branch re-checks the same condition the query was
-                  // declared with — otherwise e.g. an org with no GitHub
-                  // installation yet would still fire the accessible-repos
-                  // request and surface a raw "installation not found" 404.
-                  if (!selectedOrganizationId) {
-                    return;
-                  }
-                  switch (value as SettingsTab) {
-                    case "organization":
-                      void organizationDetailQuery.refetch();
-                      break;
-                    case "github":
-                      void githubConnectionQuery.refetch();
-                      if (
-                        ["connected", "syncing", "sync_failed"].includes(
-                          githubConnectionQuery.data?.data.state ?? "",
-                        )
-                      ) {
-                        void accessibleRepositoriesQuery.refetch();
-                      }
-                      break;
-                    case "sync":
-                      void managedRepositoriesQuery.refetch();
-                      if (selectedRepositoryId) {
-                        void syncJobsQuery.refetch();
-                      }
-                      break;
-                    case "members":
-                      void organizationMembersQuery.refetch();
-                      break;
-                    case "rules":
-                      void queryClient.refetchQueries({
-                        queryKey: organizationSettingsKeys.rules(selectedOrganizationId),
-                      });
-                      void queryClient.refetchQueries({
-                        queryKey: organizationSettingsKeys.retention(selectedOrganizationId),
-                      });
-                      break;
-                  }
-                }}
-              >
-                <TabsList className="sticky top-0 z-10 bg-background/95 backdrop-blur">
-                  <TabsTrigger value="organization">Organization</TabsTrigger>
-                  <TabsTrigger value="github">GitHub</TabsTrigger>
-                  <TabsTrigger value="sync">Sync</TabsTrigger>
-                  <TabsTrigger value="members">Members</TabsTrigger>
-                  <TabsTrigger value="rules">Rules &amp; retention</TabsTrigger>
-                </TabsList>
+              <TabsList>
+                <TabsTrigger value="organization">Organization</TabsTrigger>
+                <TabsTrigger value="github">GitHub</TabsTrigger>
+                <TabsTrigger value="sync">Sync</TabsTrigger>
+                <TabsTrigger value="members">Members</TabsTrigger>
+                <TabsTrigger value="rules">Rules &amp; retention</TabsTrigger>
+              </TabsList>
+            </div>
 
-                <TabsContent value="organization">
+
+                <TabsContent value="organization" className="min-h-0 flex-1 overflow-y-auto">
                   <section className="grid gap-6 xl:grid-cols-2">
                     <Card className="space-y-4">
                       <div className="flex items-center gap-2">
@@ -906,7 +903,7 @@ function SettingsPage() {
                   </section>
                 </TabsContent>
 
-                <TabsContent value="github">
+                <TabsContent value="github" className="min-h-0 flex-1 overflow-y-auto">
                   <section className="grid gap-6 xl:grid-cols-2">
                     <Card id="github-connection" className="space-y-4">
                       <div className="flex items-center gap-2">
@@ -1167,30 +1164,40 @@ function SettingsPage() {
                               key={repository.githubRepositoryId}
                               className="flex items-start gap-3 p-4"
                             >
-                              <input
-                                type="checkbox"
-                                checked={selectedAccessibleRepositoryIds.includes(
-                                  repository.githubRepositoryId,
-                                )}
-                                disabled={
-                                  repository.installationStatus !== "accessible"
-                                }
-                                onChange={(event) =>
-                                  setSelectedAccessibleRepositoryIds(
-                                    (current) =>
-                                      event.target.checked
-                                        ? [
-                                            ...current,
-                                            repository.githubRepositoryId,
-                                          ]
-                                        : current.filter(
-                                            (id) =>
-                                              id !==
+                              {repository.selectionStatus === "not_selected" ? (
+                                <input
+                                  type="checkbox"
+                                  className="mt-1"
+                                  checked={selectedAccessibleRepositoryIds.includes(
+                                    repository.githubRepositoryId,
+                                  )}
+                                  disabled={
+                                    repository.installationStatus !== "accessible"
+                                  }
+                                  onChange={(event) =>
+                                    setSelectedAccessibleRepositoryIds(
+                                      (current) =>
+                                        event.target.checked
+                                          ? [
+                                              ...current,
                                               repository.githubRepositoryId,
-                                          ),
-                                  )
-                                }
-                              />
+                                            ]
+                                          : current.filter(
+                                              (id) =>
+                                                id !==
+                                                repository.githubRepositoryId,
+                                            ),
+                                    )
+                                  }
+                                />
+                              ) : (
+                                <span
+                                  className="mt-1 flex h-4 w-4 shrink-0 items-center justify-center text-emerald-600 dark:text-emerald-400"
+                                  title="Already connected"
+                                >
+                                  <Check className="h-4 w-4" />
+                                </span>
+                              )}
                               <div className="space-y-2">
                                 <div className="flex flex-wrap items-center gap-2">
                                   <p className="font-medium">
@@ -1252,7 +1259,7 @@ function SettingsPage() {
                           Connect selected repositories
                         </Button>
                         {accessibleRepositoriesQuery.data ? (
-                          <>
+                          <div className="ml-auto flex items-center gap-3">
                             <Button
                               type="button"
                               variant="outline"
@@ -1299,15 +1306,115 @@ function SettingsPage() {
                             >
                               <ChevronRight className="h-4 w-4" />
                             </Button>
-                          </>
+                          </div>
                         ) : null}
                       </div>
                     </Card>
                   </section>
                 </TabsContent>
 
-                <TabsContent value="sync">
-                  <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+                <TabsContent value="sync" className="min-h-0 flex-1 overflow-y-auto">
+                  <section className="space-y-6">
+                    <Card className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-xl font-semibold">
+                          Sync job detail
+                        </h2>
+                        <InfoTooltip content="Details for the sync job selected from the list." />
+                      </div>
+                      {syncJobDetailQuery.isError ? (
+                        <ErrorState
+                          title="Could not load sync job detail"
+                          message={getErrorMessage(syncJobDetailQuery.error)}
+                          onRetry={() => void syncJobDetailQuery.refetch()}
+                        />
+                      ) : null}
+                      {retrySyncMutation.isError ? (
+                        <ErrorState
+                          title="Could not retry sync job"
+                          message={getErrorMessage(retrySyncMutation.error)}
+                        />
+                      ) : null}
+                      {cancelSyncMutation.isError ? (
+                        <ErrorState
+                          title="Could not cancel sync job"
+                          message={getErrorMessage(cancelSyncMutation.error)}
+                        />
+                      ) : null}
+                      {activeSyncJob ? (
+                        <div className="space-y-4">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <StatusPill
+                              label={activeSyncJob.status}
+                              tone={getSyncTone(activeSyncJob.status)}
+                            />
+                            <span className="text-sm text-muted-foreground">
+                              {activeSyncJob.progress}% complete
+                            </span>
+                          </div>
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div>
+                              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
+                                Started
+                              </p>
+                              <p className="mt-2">
+                                {formatDateTime(activeSyncJob.startedAt)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
+                                Finished
+                              </p>
+                              <p className="mt-2">
+                                {formatDateTime(activeSyncJob.finishedAt)}
+                              </p>
+                            </div>
+                          </div>
+                          {activeSyncJob.errorMessage ? (
+                            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-300">
+                              {activeSyncJob.errorMessage}
+                            </div>
+                          ) : null}
+                          <div className="flex flex-wrap gap-3">
+                            {activeSyncJob.status === "failed" ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() =>
+                                  retrySyncMutation.mutate(activeSyncJob.id, {
+                                    onSuccess: () =>
+                                      notifySuccess("Sync job retried"),
+                                  })
+                                }
+                              >
+                                Retry sync job
+                              </Button>
+                            ) : null}
+                            {activeSyncJob.status === "pending" ||
+                            activeSyncJob.status === "running" ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() =>
+                                  cancelSyncMutation.mutate(activeSyncJob.id, {
+                                    onSuccess: () =>
+                                      notifySuccess("Sync job canceled"),
+                                  })
+                                }
+                              >
+                                Cancel sync job
+                              </Button>
+                            ) : null}
+                          </div>
+                        </div>
+                      ) : (
+                        <EmptyState
+                          title="No sync job selected"
+                          description="Choose a sync job from the history list to inspect its current server-side state."
+                        />
+                      )}
+                    </Card>
+
                     <Card className="space-y-4">
                       <div className="flex items-center gap-2">
                         <h2 className="text-xl font-semibold">
@@ -1394,6 +1501,96 @@ function SettingsPage() {
                           Start full sync
                         </Button>
                       </div>
+
+                      {selectedManagedRepository ? (
+                        <div className="flex flex-wrap items-center gap-3">
+                          <StatusPill
+                            label={selectedManagedRepository.isActive ? "active" : "inactive"}
+                            tone={selectedManagedRepository.isActive ? "success" : "neutral"}
+                          />
+                          <span className="text-sm text-muted-foreground">
+                            {selectedManagedRepository.isActive
+                              ? "New GitHub activity for this repository is being synced."
+                              : "This repository is deactivated. New GitHub activity is no longer synced, but existing data stays available everywhere."}
+                          </span>
+                        </div>
+                      ) : null}
+
+                      {updateRepositoryMutation.isError ? (
+                        <ErrorState
+                          title="Could not update repository"
+                          message={getErrorMessage(updateRepositoryMutation.error)}
+                        />
+                      ) : null}
+
+                      {selectedManagedRepository && !selectedManagedRepository.isActive ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={updateRepositoryMutation.isPending}
+                          onClick={() =>
+                            updateRepositoryMutation.mutate(
+                              { repositoryId: selectedManagedRepository.id, isActive: true },
+                              {
+                                onSuccess: () =>
+                                  notifySuccess(
+                                    "Repository reactivated",
+                                    "New GitHub activity for this repository will sync again.",
+                                  ),
+                              },
+                            )
+                          }
+                        >
+                          {updateRepositoryMutation.isPending ? "Reactivating..." : "Reactivate repository"}
+                        </Button>
+                      ) : null}
+
+                      {selectedManagedRepository && selectedManagedRepository.isActive ? (
+                        confirmDeactivateRepository ? (
+                          <div className="flex flex-wrap items-center gap-3">
+                            <span className="text-sm text-rose-600 dark:text-rose-400">
+                              Stop syncing this repository? Historical data stays available
+                              everywhere — you can reactivate anytime.
+                            </span>
+                            <Button
+                              type="button"
+                              variant="danger"
+                              disabled={updateRepositoryMutation.isPending}
+                              onClick={() =>
+                                updateRepositoryMutation.mutate(
+                                  { repositoryId: selectedManagedRepository.id, isActive: false },
+                                  {
+                                    onSuccess: () => {
+                                      setConfirmDeactivateRepository(false);
+                                      notifySuccess(
+                                        "Repository deactivated",
+                                        "New GitHub activity for this repository will no longer be synced.",
+                                      );
+                                    },
+                                  },
+                                )
+                              }
+                            >
+                              {updateRepositoryMutation.isPending ? "Deactivating..." : "Confirm deactivate"}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setConfirmDeactivateRepository(false)}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="danger-outline"
+                            onClick={() => setConfirmDeactivateRepository(true)}
+                          >
+                            Deactivate repository
+                          </Button>
+                        )
+                      ) : null}
 
                       {!repositorySyncReady ? (
                         <EmptyState
@@ -1566,110 +1763,10 @@ function SettingsPage() {
                         </div>
                       ) : null}
                     </Card>
-
-                    <Card className="space-y-4">
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-xl font-semibold">
-                          Sync job detail
-                        </h2>
-                        <InfoTooltip content="Details for the sync job selected from the list." />
-                      </div>
-                      {syncJobDetailQuery.isError ? (
-                        <ErrorState
-                          title="Could not load sync job detail"
-                          message={getErrorMessage(syncJobDetailQuery.error)}
-                          onRetry={() => void syncJobDetailQuery.refetch()}
-                        />
-                      ) : null}
-                      {retrySyncMutation.isError ? (
-                        <ErrorState
-                          title="Could not retry sync job"
-                          message={getErrorMessage(retrySyncMutation.error)}
-                        />
-                      ) : null}
-                      {cancelSyncMutation.isError ? (
-                        <ErrorState
-                          title="Could not cancel sync job"
-                          message={getErrorMessage(cancelSyncMutation.error)}
-                        />
-                      ) : null}
-                      {activeSyncJob ? (
-                        <div className="space-y-4">
-                          <div className="flex flex-wrap items-center gap-3">
-                            <StatusPill
-                              label={activeSyncJob.status}
-                              tone={getSyncTone(activeSyncJob.status)}
-                            />
-                            <span className="text-sm text-muted-foreground">
-                              {activeSyncJob.progress}% complete
-                            </span>
-                          </div>
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <div>
-                              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
-                                Started
-                              </p>
-                              <p className="mt-2">
-                                {formatDateTime(activeSyncJob.startedAt)}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
-                                Finished
-                              </p>
-                              <p className="mt-2">
-                                {formatDateTime(activeSyncJob.finishedAt)}
-                              </p>
-                            </div>
-                          </div>
-                          {activeSyncJob.errorMessage ? (
-                            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-300">
-                              {activeSyncJob.errorMessage}
-                            </div>
-                          ) : null}
-                          <div className="flex flex-wrap gap-3">
-                            {activeSyncJob.status === "failed" ? (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() =>
-                                  retrySyncMutation.mutate(activeSyncJob.id, {
-                                    onSuccess: () =>
-                                      notifySuccess("Sync job retried"),
-                                  })
-                                }
-                              >
-                                Retry sync job
-                              </Button>
-                            ) : null}
-                            {activeSyncJob.status === "pending" ||
-                            activeSyncJob.status === "running" ? (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() =>
-                                  cancelSyncMutation.mutate(activeSyncJob.id, {
-                                    onSuccess: () =>
-                                      notifySuccess("Sync job canceled"),
-                                  })
-                                }
-                              >
-                                Cancel sync job
-                              </Button>
-                            ) : null}
-                          </div>
-                        </div>
-                      ) : (
-                        <EmptyState
-                          title="No sync job selected"
-                          description="Choose a sync job from the history list to inspect its current server-side state."
-                        />
-                      )}
-                    </Card>
                   </section>
                 </TabsContent>
 
-                <TabsContent value="members">
+                <TabsContent value="members" className="min-h-0 flex-1 overflow-y-auto">
                   <section>
                     <Card className="space-y-4">
                       <div className="flex items-center gap-2">
@@ -1872,7 +1969,7 @@ function SettingsPage() {
                   </section>
                 </TabsContent>
 
-                <TabsContent value="rules">
+                <TabsContent value="rules" className="min-h-0 flex-1 overflow-y-auto">
                   {selectedOrganizationId ? (
                     <section className="space-y-6">
                       <OrganizationRuleSettingsCard
@@ -1884,9 +1981,9 @@ function SettingsPage() {
                     </section>
                   ) : null}
                 </TabsContent>
-              </Tabs>
-            </>
+            </Tabs>
           )}
+          </div>
         </div>
       </PageShell>
       <SuccessModal
