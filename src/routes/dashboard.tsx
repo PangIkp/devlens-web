@@ -11,7 +11,7 @@ import { DashboardWorkloadDistribution } from "@/components/dashboard/dashboard-
 import { EChartPanel } from "@/components/charts/echart-panel";
 import { EmptyState, ErrorState } from "@/components/shared/query-state";
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   useDashboardSummaryQuery,
   useDeploymentMetricsQuery,
@@ -299,53 +299,60 @@ function DashboardPage() {
             <label className="space-y-2">
               <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Organization</span>
               <Select
-                aria-label="Organization"
                 value={selectedOrganizationId ?? ""}
                 disabled={organizationsQuery.isLoading || (organizations?.length ?? 0) === 0}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   updateSearch({
-                    organizationId: event.target.value,
+                    organizationId: value,
                     repositoryId: undefined,
                     hotspotPage: 1,
                   })
                 }
               >
-                {organizations?.map((organization) => (
-                  <option key={organization.id} value={organization.id}>
-                    {organization.name}
-                  </option>
-                ))}
+                <SelectTrigger aria-label="Organization">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {organizations?.map((organization) => (
+                    <SelectItem key={organization.id} value={organization.id}>
+                      {organization.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </label>
 
             <label className="space-y-2">
               <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Repository</span>
               <Select
-                aria-label="Repository"
                 value={selectedRepositoryId ?? ""}
                 disabled={repositoriesQuery.isLoading || repositories.length === 0}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   updateSearch({
-                    repositoryId: event.target.value,
+                    repositoryId: value,
                     hotspotPage: 1,
                   })
                 }
               >
-                {repositories.map((repository) => (
-                  <option key={repository.id} value={repository.id}>
-                    {repository.fullName}
-                  </option>
-                ))}
+                <SelectTrigger aria-label="Repository">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {repositories.map((repository) => (
+                    <SelectItem key={repository.id} value={repository.id}>
+                      {repository.fullName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </label>
 
             <label className="space-y-2">
               <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Date range</span>
               <Select
-                aria-label="Date range"
                 value={String(selectedPreset)}
-                onChange={(event) => {
-                  const nextPreset = Number(event.target.value) as (typeof dashboardRangePresets)[number];
+                onValueChange={(value) => {
+                  const nextPreset = Number(value) as (typeof dashboardRangePresets)[number];
                   const nextRange = getDashboardDateRangeForPreset(nextPreset);
                   updateSearch({
                     from: nextRange.from,
@@ -354,9 +361,14 @@ function DashboardPage() {
                   });
                 }}
               >
-                <option value="7">Last 7 Days</option>
-                <option value="30">Last 30 Days</option>
-                <option value="90">Last 90 Days</option>
+                <SelectTrigger aria-label="Date range">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7">Last 7 Days</SelectItem>
+                  <SelectItem value="30">Last 30 Days</SelectItem>
+                  <SelectItem value="90">Last 90 Days</SelectItem>
+                </SelectContent>
               </Select>
             </label>
 

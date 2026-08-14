@@ -499,8 +499,10 @@ describe("dashboard route", () => {
 
     expect(await screen.findByText("internal/metrics/calculator.go")).toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText("Repository"), repositoryIdTwo);
-    await user.selectOptions(screen.getByLabelText("Date range"), "7");
+    await user.click(screen.getByLabelText("Repository"));
+    await user.click(await screen.findByRole("option", { name: "devlens-labs/devlens-web" }));
+    await user.click(screen.getByLabelText("Date range"));
+    await user.click(await screen.findByRole("option", { name: "Last 7 Days" }));
 
     const requestedUrls = fetchStub.mock.calls.map(([input]) => String(input));
 

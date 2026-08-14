@@ -9,7 +9,7 @@ import { RepositoryListSkeleton } from "@/components/repositories/repository-lis
 import { RepositoryListTable } from "@/components/repositories/repository-list-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useOrganizationsQuery } from "@/features/organizations/use-organizations-query";
 import { useRepositoriesListQuery } from "@/features/repositories/repositories.query";
 import type { RepositoryStatus } from "@/features/repositories/repositories.schemas";
@@ -114,21 +114,25 @@ function RepositoriesPage() {
             <label className="space-y-2">
               <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Organization</span>
               <Select
-                aria-label="Organization"
                 value={selectedOrganizationId ?? ""}
                 disabled={organizationsQuery.isLoading || (organizations?.length ?? 0) === 0}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   updateSearch({
-                    organizationId: event.target.value,
+                    organizationId: value,
                     page: 1,
                   })
                 }
               >
-                {organizations?.map((organization) => (
-                  <option key={organization.id} value={organization.id}>
-                    {organization.name}
-                  </option>
-                ))}
+                <SelectTrigger aria-label="Organization">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {organizations?.map((organization) => (
+                    <SelectItem key={organization.id} value={organization.id}>
+                      {organization.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </label>
 
@@ -145,19 +149,23 @@ function RepositoriesPage() {
             <label className="space-y-2">
               <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Status</span>
               <Select
-                aria-label="Repository status"
-                value={search.status ?? ""}
-                onChange={(event) =>
+                value={search.status ?? "all"}
+                onValueChange={(value) =>
                   updateSearch({
-                    status: (event.target.value || undefined) as RepositoryStatus | undefined,
+                    status: (value === "all" ? undefined : value) as RepositoryStatus | undefined,
                     page: 1,
                   })
                 }
               >
-                <option value="">All statuses</option>
-                <option value="active">Active repositories</option>
-                <option value="inactive">Inactive repositories</option>
-                <option value="archived">Archived repositories</option>
+                <SelectTrigger aria-label="Repository status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="active">Active repositories</SelectItem>
+                  <SelectItem value="inactive">Inactive repositories</SelectItem>
+                  <SelectItem value="archived">Archived repositories</SelectItem>
+                </SelectContent>
               </Select>
             </label>
 

@@ -6,7 +6,7 @@ import { RepositoryDetailPanel } from "@/components/repositories/repository-deta
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/shared/query-state";
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DashboardSummaryGrid } from "@/components/dashboard/dashboard-summary-grid";
 import { DashboardHotspotsTable } from "@/components/dashboard/dashboard-hotspots-table";
 import { DashboardWorkloadDistribution } from "@/components/dashboard/dashboard-workload-distribution";
@@ -102,15 +102,19 @@ function RepositoryDetailPage() {
                 <label className="space-y-2">
                   <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Date range</span>
                   <Select
-                    aria-label="Repository health date range"
                     value={String(selectedPreset)}
-                    onChange={(event) =>
-                      setRange(getDashboardDateRangeForPreset(Number(event.target.value) as (typeof dashboardRangePresets)[number]))
+                    onValueChange={(value) =>
+                      setRange(getDashboardDateRangeForPreset(Number(value) as (typeof dashboardRangePresets)[number]))
                     }
                   >
-                    <option value="7">Last 7 Days</option>
-                    <option value="30">Last 30 Days</option>
-                    <option value="90">Last 90 Days</option>
+                    <SelectTrigger aria-label="Repository health date range">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="7">Last 7 Days</SelectItem>
+                      <SelectItem value="30">Last 30 Days</SelectItem>
+                      <SelectItem value="90">Last 90 Days</SelectItem>
+                    </SelectContent>
                   </Select>
                 </label>
               </div>
