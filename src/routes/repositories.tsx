@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createRoute } from "@tanstack/react-router";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { z } from "zod";
 import { rootRoute } from "@/routes/root";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -10,6 +11,7 @@ import { RepositoryListTable } from "@/components/repositories/repository-list-t
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useOrganizationsQuery } from "@/features/organizations/use-organizations-query";
 import { useRepositoriesListQuery } from "@/features/repositories/repositories.query";
 import type { RepositoryStatus } from "@/features/repositories/repositories.schemas";
@@ -45,9 +47,9 @@ function RepositoriesPage() {
   const search = repositoriesRoute.useSearch();
   const [searchInput, setSearchInput] = useState(search.search ?? "");
   const organizationsQuery = useOrganizationsQuery();
-  const organizations = organizationsQuery.data?.data;
-  const firstOrganizationId = organizations?.[0]?.id;
-  const selectedOrganizationId = search.organizationId ?? firstOrganizationId;
+  const organizations = useMemo(() => organizationsQuery.data?.data ?? [], [organizationsQuery.data?.data]);
+  const selectedOrganizationId = search.organizationId ?? organizations[0]?.id;
+  const statusTab = search.status ?? "all";
   const repositoriesQuery = useRepositoriesListQuery(
     {
       organizationId: selectedOrganizationId ?? "",
@@ -64,19 +66,17 @@ function RepositoriesPage() {
   }, [search.search]);
 
   useEffect(() => {
-    if (!search.organizationId && firstOrganizationId) {
+    if (organizations.length === 0) {
+      return;
+    }
+    const organizationStillExists = organizations.some((organization) => organization.id === search.organizationId);
+    if (!organizationStillExists) {
       void navigate({
-        search: (previous) => ({
-          ...previous,
-          organizationId: firstOrganizationId,
-          page: 1,
-        }),
+        search: (previous) => ({ ...previous, organizationId: organizations[0].id, page: 1 }),
         replace: true,
       });
     }
-  }, [firstOrganizationId, navigate, search.organizationId]);
-
-  const pagination = repositoriesQuery.data?.pagination;
+  }, [navigate, organizations, search.organizationId]);
 
   function updateSearch(next: {
     organizationId?: string;
@@ -104,163 +104,157 @@ function RepositoriesPage() {
 
   return (
     <AppLayout>
-      <PageShell
-        eyebrow="Repositories"
-        title="Repository management"
-        description="Browse repositories from the selected organization, inspect sync recency, and drill into repository details backed by the live DevLens API."
-      >
-        <div className="space-y-6">
-          <form className="grid gap-3 md:grid-cols-[1.2fr_1.2fr_1fr_auto]" onSubmit={handleFilterSubmit}>
-            <label className="space-y-2">
-              <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Organization</span>
-              <Select
-                value={selectedOrganizationId ?? ""}
-                disabled={organizationsQuery.isLoading || (organizations?.length ?? 0) === 0}
-                onValueChange={(value) =>
-                  updateSearch({
-                    organizationId: value,
-                    page: 1,
-                  })
-                }
-              >
-                <SelectTrigger aria-label="Organization">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {organizations?.map((organization) => (
-                    <SelectItem key={organization.id} value={organization.id}>
-                      {organization.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
+      <PageShell unwrapped>
+        <Tabs
+          value={statusTab}
+          onValueChange={(value) =>
+            updateSearch({
+              status: value === "all" ? undefined : (value as RepositoryStatus),
+              page: 1,
+            })
+          }
+          className="flex h-full min-h-0 flex-col space-y-6"
+        >
+          <div className="shrink-0 space-y-6 border-b border-border/60 pb-6">
+            <p className="text-sm font-medium uppercase tracking-[0.35em] text-accent">Repositories</p>
 
-            <label className="space-y-2">
-              <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Search</span>
-              <Input
-                aria-label="Search repositories"
-                placeholder="Search by repository name"
-                value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
+            <form className="grid gap-3 lg:grid-cols-[1.2fr_1.4fr_auto]" onSubmit={handleFilterSubmit}>
+              <label className="space-y-2">
+                <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Organization</span>
+                <Select
+                  value={selectedOrganizationId ?? ""}
+                  disabled={organizationsQuery.isLoading || organizations.length === 0}
+                  onValueChange={(value) =>
+                    updateSearch({
+                      organizationId: value,
+                      page: 1,
+                    })
+                  }
+                >
+                  <SelectTrigger aria-label="Organization">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {organizations.map((organization) => (
+                      <SelectItem key={organization.id} value={organization.id}>
+                        {organization.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+
+              <label className="space-y-2">
+                <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Search</span>
+                <Input
+                  aria-label="Search repositories"
+                  placeholder="Search by repository name"
+                  value={searchInput}
+                  onChange={(event) => setSearchInput(event.target.value)}
+                />
+              </label>
+
+              <div className="flex items-end">
+                <Button type="submit" className="w-full lg:w-auto">
+                  Apply
+                </Button>
+              </div>
+            </form>
+
+            {!organizationsQuery.isLoading && !organizationsQuery.isError && organizations.length === 0 ? (
+              <EmptyState
+                title="No organizations available"
+                description="Connect at least one organization in the backend before browsing repositories here."
               />
-            </label>
+            ) : null}
 
-            <label className="space-y-2">
-              <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Status</span>
-              <Select
-                value={search.status ?? "all"}
-                onValueChange={(value) =>
-                  updateSearch({
-                    status: (value === "all" ? undefined : value) as RepositoryStatus | undefined,
-                    page: 1,
-                  })
-                }
-              >
-                <SelectTrigger aria-label="Repository status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  <SelectItem value="active">Active repositories</SelectItem>
-                  <SelectItem value="inactive">Inactive repositories</SelectItem>
-                  <SelectItem value="archived">Archived repositories</SelectItem>
-                </SelectContent>
-              </Select>
-            </label>
+            {organizationsQuery.isError ? (
+              <ErrorState
+                title="Could not load organizations"
+                message={getErrorMessage(organizationsQuery.error)}
+                onRetry={() => void organizationsQuery.refetch()}
+              />
+            ) : null}
 
-            <div className="flex items-end">
-              <Button type="submit" className="w-full md:w-auto">
-                Apply filters
-              </Button>
-            </div>
-          </form>
+            {organizations.length > 0 ? (
+              <TabsList>
+                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="active">Active</TabsTrigger>
+                <TabsTrigger value="inactive">Inactive</TabsTrigger>
+                <TabsTrigger value="archived">Archived</TabsTrigger>
+              </TabsList>
+            ) : null}
+          </div>
 
-          {organizationsQuery.isLoading ? <RepositoryListSkeleton /> : null}
+          {organizations.length > 0 ? (
+            <TabsContent value={statusTab} className="flex min-h-0 flex-1 flex-col space-y-4">
+              {repositoriesQuery.isError ? (
+                <ErrorState
+                  title="Could not load repositories"
+                  message={getErrorMessage(repositoriesQuery.error)}
+                  onRetry={() => void repositoriesQuery.refetch()}
+                />
+              ) : null}
 
-          {organizationsQuery.isError ? (
-            <ErrorState
-              title="Could not load organizations"
-              message={getErrorMessage(organizationsQuery.error)}
-              onRetry={() => void organizationsQuery.refetch()}
-            />
-          ) : null}
+              {repositoriesQuery.data && repositoriesQuery.data.data.length === 0 ? (
+                <EmptyState
+                  title="No repositories matched"
+                  description="Try a different search term, or sync repositories in the backend first."
+                  action={
+                    search.search ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setSearchInput("");
+                          updateSearch({ page: 1, search: undefined });
+                        }}
+                      >
+                        Clear search
+                      </Button>
+                    ) : undefined
+                  }
+                />
+              ) : null}
 
-          {!organizationsQuery.isLoading && !organizationsQuery.isError && (organizations?.length ?? 0) === 0 ? (
-            <EmptyState
-              title="No organizations available"
-              description="Connect at least one organization in the backend before browsing repositories here."
-            />
-          ) : null}
+              {repositoriesQuery.isLoading ? (
+                <RepositoryListSkeleton />
+              ) : repositoriesQuery.data && repositoriesQuery.data.data.length > 0 ? (
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                  <RepositoryListTable repositories={repositoriesQuery.data.data} />
+                </div>
+              ) : null}
 
-          {(organizations?.length ?? 0) > 0 && repositoriesQuery.isLoading ? <RepositoryListSkeleton /> : null}
-
-          {(organizations?.length ?? 0) > 0 && repositoriesQuery.isError ? (
-            <ErrorState
-              title="Could not load repositories"
-              message={getErrorMessage(repositoriesQuery.error)}
-              onRetry={() => void repositoriesQuery.refetch()}
-            />
-          ) : null}
-
-          {(organizations?.length ?? 0) > 0 && repositoriesQuery.data && repositoriesQuery.data.data.length === 0 ? (
-            <EmptyState
-              title="No repositories matched"
-              description="Try a different search term or status filter, or sync repositories in the backend first."
-              action={
-                search.search || search.status ? (
+              {repositoriesQuery.data && repositoriesQuery.data.data.length > 0 ? (
+                <div className="flex items-center justify-center gap-4">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => {
-                      setSearchInput("");
-                      updateSearch({
-                        page: 1,
-                        search: undefined,
-                        status: undefined,
-                      });
-                    }}
+                    size="sm"
+                    aria-label="Previous page"
+                    disabled={search.page <= 1}
+                    onClick={() => updateSearch({ page: search.page - 1 })}
                   >
-                    Clear filters
+                    <ChevronLeft className="h-4 w-4" />
                   </Button>
-                ) : undefined
-              }
-            />
+                  <p className="text-sm text-muted-foreground">
+                    Page {repositoriesQuery.data.pagination.page} / {Math.max(repositoriesQuery.data.pagination.totalPages, 1)}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    aria-label="Next page"
+                    disabled={repositoriesQuery.data.pagination.page >= Math.max(repositoriesQuery.data.pagination.totalPages, 1)}
+                    onClick={() => updateSearch({ page: search.page + 1 })}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : null}
+            </TabsContent>
           ) : null}
-
-          {repositoriesQuery.data && repositoriesQuery.data.data.length > 0 ? (
-            <div className="space-y-4">
-              <div className="flex flex-col gap-2 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
-                <p>
-                  Showing page {repositoriesQuery.data.pagination.page} of {Math.max(repositoriesQuery.data.pagination.totalPages, 1)}
-                </p>
-                <p>{repositoriesQuery.data.pagination.totalItems} repositories found</p>
-              </div>
-              <RepositoryListTable repositories={repositoriesQuery.data.data} />
-              <div className="flex items-center justify-between">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={search.page <= 1}
-                  onClick={() => updateSearch({ page: search.page - 1 })}
-                >
-                  Previous page
-                </Button>
-                <p className="text-sm text-muted-foreground">
-                  Page {pagination?.page ?? search.page} / {Math.max(pagination?.totalPages ?? 1, 1)}
-                </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={!pagination || pagination.page >= Math.max(pagination.totalPages, 1)}
-                  onClick={() => updateSearch({ page: search.page + 1 })}
-                >
-                  Next page
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </div>
+        </Tabs>
       </PageShell>
     </AppLayout>
   );

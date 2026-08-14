@@ -1,4 +1,5 @@
 import { screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { renderApp } from "@/test/render-app";
 
 const organizationId = "11111111-1111-4111-8111-111111111111";
@@ -118,6 +119,7 @@ function createRepositoryDetailFetchStub(options?: { repositoryOverrides?: Parti
 describe("repository detail route", () => {
   it("renders repository detail success state including repository health", async () => {
     vi.stubGlobal("fetch", createRepositoryDetailFetchStub());
+    const user = userEvent.setup();
 
     renderApp(`/repositories/${repositoryId}`);
 
@@ -130,6 +132,8 @@ describe("repository detail route", () => {
 
     expect(await screen.findByText("Repository health")).toBeInTheDocument();
     expect(await screen.findByText("internal/metrics/calculator.go")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "Workload distribution" }));
     expect(screen.getByText("octocat", { selector: "span" })).toBeInTheDocument();
   });
 
