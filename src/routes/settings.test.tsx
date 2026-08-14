@@ -19,11 +19,23 @@ function jsonResponse(status: number, body?: unknown) {
 function ruleSettingsBody() {
   return {
     data: {
-      largePR: { enabled: true, filesThreshold: 25, totalChangesThreshold: 800 },
+      largePR: {
+        enabled: true,
+        filesThreshold: 25,
+        totalChangesThreshold: 800,
+      },
       slowReview: { enabled: true, waitHoursThreshold: 24 },
       hotspot: { enabled: false, scoreThreshold: 150 },
-      deploymentFailure: { enabled: true, minimumDeployments: 3, failureRateThreshold: 0.3 },
-      reviewConcentration: { enabled: true, minimumReviewCount: 5, shareThreshold: 0.6 },
+      deploymentFailure: {
+        enabled: true,
+        minimumDeployments: 3,
+        failureRateThreshold: 0.3,
+      },
+      reviewConcentration: {
+        enabled: true,
+        minimumReviewCount: 5,
+        shareThreshold: 0.6,
+      },
       bottleneck: {
         enabled: true,
         minimumMergedCount: 3,
@@ -53,298 +65,432 @@ function retentionSettingsBody(analyticsRawRetentionDays = 45) {
 }
 
 function createSettingsFetchStub(options?: {
-  connectionState?: "not_connected" | "installation_required" | "connected" | "syncing" | "sync_failed";
-  accessibleSelectionStatus?: "not_selected" | "selected" | "syncing" | "sync_failed" | "synced";
+  connectionState?:
+    | "not_connected"
+    | "installation_required"
+    | "connected"
+    | "syncing"
+    | "sync_failed";
+  accessibleSelectionStatus?:
+    "not_selected" | "selected" | "syncing" | "sync_failed" | "synced";
   accessibleInstallationStatus?: "accessible" | "not_installed" | "suspended";
   createSyncResponse?: { status: number; body: unknown };
   callbackStatus?: number;
+  accessibleTwoPages?: boolean;
 }) {
-  return vi.fn().mockImplementation((input: string | URL, init?: RequestInit) => {
-    const url = new URL(String(input));
-    const method = init?.method ?? "GET";
+  let organizationDeleted = false;
 
-    if (url.pathname === "/api/v1/organizations" && method === "GET") {
-      return Promise.resolve(
-        jsonResponse(200, {
-          data: [
-            {
+  return vi
+    .fn()
+    .mockImplementation((input: string | URL, init?: RequestInit) => {
+      const url = new URL(String(input));
+      const method = init?.method ?? "GET";
+
+      if (url.pathname === "/api/v1/organizations" && method === "POST") {
+        return Promise.resolve(
+          jsonResponse(201, {
+            data: {
+              id: "88888888-8888-4888-8888-888888888888",
+              githubId: 2,
+              slug: "new-org",
+              name: "New Org",
+              createdAt: "2026-08-13T00:00:00Z",
+            },
+          }),
+        );
+      }
+
+      if (
+        url.pathname === `/api/v1/organizations/${organizationId}` &&
+        method === "DELETE"
+      ) {
+        organizationDeleted = true;
+        return Promise.resolve(jsonResponse(204));
+      }
+
+      if (url.pathname === "/api/v1/organizations" && method === "GET") {
+        return Promise.resolve(
+          jsonResponse(200, {
+            data: organizationDeleted
+              ? []
+              : [
+                  {
+                    id: organizationId,
+                    githubId: 1,
+                    slug: "devlens",
+                    name: "DevLens Labs",
+                    createdAt: "2026-08-10T10:00:00Z",
+                  },
+                ],
+            pagination: organizationDeleted
+              ? { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 }
+              : { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
+          }),
+        );
+      }
+
+      if (
+        url.pathname === `/api/v1/organizations/${organizationId}` &&
+        method === "GET"
+      ) {
+        return Promise.resolve(
+          jsonResponse(200, {
+            data: {
               id: organizationId,
               githubId: 1,
               slug: "devlens",
               name: "DevLens Labs",
               createdAt: "2026-08-10T10:00:00Z",
+              updatedAt: "2026-08-12T00:00:00Z",
             },
-          ],
-          pagination: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
-        }),
-      );
-    }
-
-    if (url.pathname === `/api/v1/organizations/${organizationId}` && method === "GET") {
-      return Promise.resolve(
-        jsonResponse(200, {
-          data: {
-            id: organizationId,
-            githubId: 1,
-            slug: "devlens",
-            name: "DevLens Labs",
-            createdAt: "2026-08-10T10:00:00Z",
-            updatedAt: "2026-08-12T00:00:00Z",
-          },
-        }),
-      );
-    }
-
-    if (url.pathname === `/api/v1/organizations/${organizationId}/members` && method === "GET") {
-      return Promise.resolve(
-        jsonResponse(200, {
-          data: [
-            {
-              id: memberId,
-              organizationId,
-              userId,
-              role: "owner",
-            },
-          ],
-        }),
-      );
-    }
-
-    if (url.pathname === `/api/v1/organizations/${organizationId}/github/connection`) {
-      return Promise.resolve(
-        jsonResponse(200, {
-          data: {
-            organizationId,
-            provider: "github",
-            state: options?.connectionState ?? "connected",
-            connectedRepositories: 1,
-            accountLogin: "devlens-labs",
-            lastSyncedAt: "2026-08-12T00:00:00Z",
-          },
-        }),
-      );
-    }
-
-    if (url.pathname === `/api/v1/organizations/${organizationId}/github/installations/start`) {
-      return Promise.resolve(
-        jsonResponse(200, {
-          data: {
-            installUrl: "https://github.com/apps/devlens/installations/new",
-            state: "opaque-state",
-          },
-        }),
-      );
-    }
-
-    if (url.pathname === `/api/v1/organizations/${organizationId}/github/installations/callback`) {
-      if (options?.callbackStatus && options.callbackStatus >= 400) {
-        return Promise.resolve(
-          jsonResponse(options.callbackStatus, {
-            error: { code: "VALIDATION_ERROR", message: "request validation failed" },
           }),
         );
       }
 
-      return Promise.resolve(
-        jsonResponse(200, {
-          data: {
-            organizationId,
-            provider: "github",
-            state: "connected",
-            connectedRepositories: 1,
-          },
-        }),
-      );
-    }
+      if (
+        url.pathname === `/api/v1/organizations/${organizationId}/members` &&
+        method === "GET"
+      ) {
+        return Promise.resolve(
+          jsonResponse(200, {
+            data: [
+              {
+                id: memberId,
+                organizationId,
+                userId,
+                role: "owner",
+              },
+            ],
+          }),
+        );
+      }
 
-    if (url.pathname === `/api/v1/organizations/${organizationId}/github/repositories`) {
-      return Promise.resolve(
-        jsonResponse(200, {
-          data: [
-            {
-              githubRepositoryId: 1001,
-              fullName: "devlens-labs/devlens-api",
-              private: true,
-              defaultBranch: "main",
-              installationStatus: options?.accessibleInstallationStatus ?? "accessible",
-              selectionStatus: options?.accessibleSelectionStatus ?? "selected",
-            },
-          ],
-          pagination: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
-        }),
-      );
-    }
-
-    if (url.pathname === `/api/v1/organizations/${organizationId}/github/repositories/select`) {
-      return Promise.resolve(
-        jsonResponse(202, {
-          data: {
-            state: "syncing",
-            selectedRepositoryIds: [1001],
-            createdRepositoryIds: [repositoryId],
-            syncJobIds: [syncJobId],
-          },
-        }),
-      );
-    }
-
-    if (url.pathname === `/api/v1/organizations/${organizationId}/repositories`) {
-      return Promise.resolve(
-        jsonResponse(200, {
-          data: [
-            {
-              id: repositoryId,
+      if (
+        url.pathname ===
+        `/api/v1/organizations/${organizationId}/github/connection`
+      ) {
+        return Promise.resolve(
+          jsonResponse(200, {
+            data: {
               organizationId,
-              githubId: 1001,
-              name: "devlens-api",
-              fullName: "devlens-labs/devlens-api",
-              defaultBranch: "main",
-              isActive: true,
-              archivedAt: null,
+              provider: "github",
+              state: options?.connectionState ?? "connected",
+              connectedRepositories: 1,
+              accountLogin: "devlens-labs",
               lastSyncedAt: "2026-08-12T00:00:00Z",
-              createdAt: "2026-08-10T10:00:00Z",
-              updatedAt: "2026-08-12T00:00:00Z",
             },
-          ],
-          pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
-        }),
-      );
-    }
+          }),
+        );
+      }
 
-    if (url.pathname === `/api/v1/repositories/${repositoryId}/sync-jobs`) {
-      return Promise.resolve(
-        jsonResponse(200, {
-          data: [
-            {
+      if (
+        url.pathname ===
+        `/api/v1/organizations/${organizationId}/github/installations/start`
+      ) {
+        return Promise.resolve(
+          jsonResponse(200, {
+            data: {
+              installUrl: "https://github.com/apps/devlens/installations/new",
+              state: "opaque-state",
+            },
+          }),
+        );
+      }
+
+      if (
+        url.pathname ===
+        `/api/v1/organizations/${organizationId}/github/installations/callback`
+      ) {
+        if (options?.callbackStatus && options.callbackStatus >= 400) {
+          return Promise.resolve(
+            jsonResponse(options.callbackStatus, {
+              error: {
+                code: "VALIDATION_ERROR",
+                message: "request validation failed",
+              },
+            }),
+          );
+        }
+
+        return Promise.resolve(
+          jsonResponse(200, {
+            data: {
+              organizationId,
+              provider: "github",
+              state: "connected",
+              connectedRepositories: 1,
+            },
+          }),
+        );
+      }
+
+      if (
+        url.pathname ===
+        `/api/v1/organizations/${organizationId}/github/repositories`
+      ) {
+        if (options?.accessibleTwoPages) {
+          const page = Number(url.searchParams.get("page") ?? "1");
+          const data =
+            page === 2
+              ? [
+                  {
+                    githubRepositoryId: 2002,
+                    fullName: "devlens-labs/page-two-repo",
+                    private: true,
+                    defaultBranch: "main",
+                    installationStatus: "accessible",
+                    selectionStatus: "not_selected",
+                  },
+                ]
+              : [
+                  {
+                    githubRepositoryId: 2001,
+                    fullName: "devlens-labs/page-one-repo",
+                    private: true,
+                    defaultBranch: "main",
+                    installationStatus: "accessible",
+                    selectionStatus: "not_selected",
+                  },
+                ];
+          return Promise.resolve(
+            jsonResponse(200, {
+              data,
+              pagination: {
+                page,
+                pageSize: 1,
+                totalItems: 2,
+                totalPages: 2,
+              },
+            }),
+          );
+        }
+
+        return Promise.resolve(
+          jsonResponse(200, {
+            data: [
+              {
+                githubRepositoryId: 1001,
+                fullName: "devlens-labs/devlens-api",
+                private: true,
+                defaultBranch: "main",
+                installationStatus:
+                  options?.accessibleInstallationStatus ?? "accessible",
+                selectionStatus:
+                  options?.accessibleSelectionStatus ?? "selected",
+              },
+            ],
+            pagination: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
+          }),
+        );
+      }
+
+      if (
+        url.pathname ===
+        `/api/v1/organizations/${organizationId}/github/repositories/select`
+      ) {
+        return Promise.resolve(
+          jsonResponse(202, {
+            data: {
+              state: "syncing",
+              selectedRepositoryIds: [1001],
+              createdRepositoryIds: [repositoryId],
+              syncJobIds: [syncJobId],
+            },
+          }),
+        );
+      }
+
+      if (
+        url.pathname === `/api/v1/organizations/${organizationId}/repositories`
+      ) {
+        return Promise.resolve(
+          jsonResponse(200, {
+            data: [
+              {
+                id: repositoryId,
+                organizationId,
+                githubId: 1001,
+                name: "devlens-api",
+                fullName: "devlens-labs/devlens-api",
+                defaultBranch: "main",
+                isActive: true,
+                archivedAt: null,
+                lastSyncedAt: "2026-08-12T00:00:00Z",
+                createdAt: "2026-08-10T10:00:00Z",
+                updatedAt: "2026-08-12T00:00:00Z",
+              },
+            ],
+            pagination: {
+              page: 1,
+              pageSize: 100,
+              totalItems: 1,
+              totalPages: 1,
+            },
+          }),
+        );
+      }
+
+      if (url.pathname === `/api/v1/repositories/${repositoryId}/sync-jobs`) {
+        return Promise.resolve(
+          jsonResponse(200, {
+            data: [
+              {
+                id: syncJobId,
+                repositoryId,
+                status: "failed",
+                progress: 80,
+                createdAt: "2026-08-12T00:00:00Z",
+              },
+            ],
+            meta: { page: 1, pageSize: 10, totalItems: 1, totalPages: 1 },
+          }),
+        );
+      }
+
+      if (url.pathname === `/api/v1/sync-jobs/${syncJobId}`) {
+        return Promise.resolve(
+          jsonResponse(200, {
+            data: {
               id: syncJobId,
               repositoryId,
               status: "failed",
               progress: 80,
+              errorMessage: "Rate limit reached",
               createdAt: "2026-08-12T00:00:00Z",
             },
-          ],
-          meta: { page: 1, pageSize: 10, totalItems: 1, totalPages: 1 },
-        }),
-      );
-    }
-
-    if (url.pathname === `/api/v1/sync-jobs/${syncJobId}`) {
-      return Promise.resolve(
-        jsonResponse(200, {
-          data: {
-            id: syncJobId,
-            repositoryId,
-            status: "failed",
-            progress: 80,
-            errorMessage: "Rate limit reached",
-            createdAt: "2026-08-12T00:00:00Z",
-          },
-        }),
-      );
-    }
-
-    if (url.pathname === `/api/v1/repositories/${repositoryId}/sync` && method === "POST") {
-      if (options?.createSyncResponse) {
-        return Promise.resolve(jsonResponse(options.createSyncResponse.status, options.createSyncResponse.body));
+          }),
+        );
       }
 
-      return Promise.resolve(
-        jsonResponse(202, {
-          data: {
-            id: "66666666-6666-4666-8666-666666666666",
-            repositoryId,
-            status: "pending",
-            progress: 0,
-            createdAt: "2026-08-12T00:00:00Z",
-          },
-        }),
-      );
-    }
+      if (
+        url.pathname === `/api/v1/repositories/${repositoryId}/sync` &&
+        method === "POST"
+      ) {
+        if (options?.createSyncResponse) {
+          return Promise.resolve(
+            jsonResponse(
+              options.createSyncResponse.status,
+              options.createSyncResponse.body,
+            ),
+          );
+        }
 
-    if (url.pathname === `/api/v1/sync-jobs/${syncJobId}/retry`) {
-      return Promise.resolve(
-        jsonResponse(202, {
-          data: {
-            id: syncJobId,
-            repositoryId,
-            status: "pending",
-            progress: 0,
-            createdAt: "2026-08-12T00:00:00Z",
-          },
-        }),
-      );
-    }
+        return Promise.resolve(
+          jsonResponse(202, {
+            data: {
+              id: "66666666-6666-4666-8666-666666666666",
+              repositoryId,
+              status: "pending",
+              progress: 0,
+              createdAt: "2026-08-12T00:00:00Z",
+            },
+          }),
+        );
+      }
 
-    if (url.pathname === "/api/v1/me") {
-      return Promise.resolve(
-        jsonResponse(200, {
-          data: {
-            id: userId,
-            email: "itsara@example.com",
-            name: "Itsara",
-            createdAt: "2026-08-10T10:00:00Z",
-          },
-        }),
-      );
-    }
+      if (url.pathname === `/api/v1/sync-jobs/${syncJobId}/retry`) {
+        return Promise.resolve(
+          jsonResponse(202, {
+            data: {
+              id: syncJobId,
+              repositoryId,
+              status: "pending",
+              progress: 0,
+              createdAt: "2026-08-12T00:00:00Z",
+            },
+          }),
+        );
+      }
 
-    if (url.pathname === `/api/v1/organizations/${organizationId}/members` && method === "POST") {
-      return Promise.resolve(
-        jsonResponse(201, {
-          data: {
-            id: "77777777-7777-4777-8777-777777777777",
-            organizationId,
-            userId,
-            role: "member",
-          },
-        }),
-      );
-    }
+      if (url.pathname === "/api/v1/me") {
+        return Promise.resolve(
+          jsonResponse(200, {
+            data: {
+              id: userId,
+              email: "itsara@example.com",
+              name: "Itsara",
+              createdAt: "2026-08-10T10:00:00Z",
+            },
+          }),
+        );
+      }
 
-    if (url.pathname === `/api/v1/organizations/${organizationId}/members/${memberId}` && method === "PATCH") {
-      return Promise.resolve(
-        jsonResponse(200, {
-          data: {
-            id: memberId,
-            organizationId,
-            userId,
-            role: "admin",
-          },
-        }),
-      );
-    }
+      if (
+        url.pathname === `/api/v1/organizations/${organizationId}/members` &&
+        method === "POST"
+      ) {
+        return Promise.resolve(
+          jsonResponse(201, {
+            data: {
+              id: "77777777-7777-4777-8777-777777777777",
+              organizationId,
+              userId,
+              role: "member",
+            },
+          }),
+        );
+      }
 
-    if (url.pathname === `/api/v1/organizations/${organizationId}/github/connection` && method === "DELETE") {
-      return Promise.resolve(
-        jsonResponse(200, {
-          data: {
-            organizationId,
-            provider: "github",
-            state: "not_connected",
-            connectedRepositories: 0,
-          },
-        }),
-      );
-    }
+      if (
+        url.pathname ===
+          `/api/v1/organizations/${organizationId}/members/${memberId}` &&
+        method === "PATCH"
+      ) {
+        return Promise.resolve(
+          jsonResponse(200, {
+            data: {
+              id: memberId,
+              organizationId,
+              userId,
+              role: "admin",
+            },
+          }),
+        );
+      }
 
-    if (url.pathname === `/api/v1/organizations/${organizationId}/settings/rules`) {
-      if (method === "PUT") {
+      if (
+        url.pathname ===
+          `/api/v1/organizations/${organizationId}/github/connection` &&
+        method === "DELETE"
+      ) {
+        return Promise.resolve(
+          jsonResponse(200, {
+            data: {
+              organizationId,
+              provider: "github",
+              state: "not_connected",
+              connectedRepositories: 0,
+            },
+          }),
+        );
+      }
+
+      if (
+        url.pathname ===
+        `/api/v1/organizations/${organizationId}/settings/rules`
+      ) {
+        if (method === "PUT") {
+          return Promise.resolve(jsonResponse(200, ruleSettingsBody()));
+        }
+
         return Promise.resolve(jsonResponse(200, ruleSettingsBody()));
       }
 
-      return Promise.resolve(jsonResponse(200, ruleSettingsBody()));
-    }
+      if (
+        url.pathname ===
+        `/api/v1/organizations/${organizationId}/settings/retention`
+      ) {
+        if (method === "PUT") {
+          return Promise.resolve(jsonResponse(200, retentionSettingsBody(60)));
+        }
 
-    if (url.pathname === `/api/v1/organizations/${organizationId}/settings/retention`) {
-      if (method === "PUT") {
-        return Promise.resolve(jsonResponse(200, retentionSettingsBody(60)));
+        return Promise.resolve(jsonResponse(200, retentionSettingsBody()));
       }
 
-      return Promise.resolve(jsonResponse(200, retentionSettingsBody()));
-    }
-
-    return Promise.reject(new Error(`Unhandled URL: ${url.toString()} (${method})`));
-  });
+      return Promise.reject(
+        new Error(`Unhandled URL: ${url.toString()} (${method})`),
+      );
+    });
 }
 
 describe("settings route", () => {
@@ -355,33 +501,63 @@ describe("settings route", () => {
 
     renderApp("/settings");
 
-    expect(await screen.findByText("Connection, onboarding, and organization settings")).toBeInTheDocument();
+    expect(await screen.findByText("Organization profile")).toBeInTheDocument();
     expect(screen.getByText("DevLens Labs")).toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: "Retry sync job" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Connect selected repositories" }));
+    await user.click(await screen.findByRole("tab", { name: "GitHub" }));
+    await user.click(
+      screen.getByRole("button", { name: "Connect selected repositories" }),
+    );
+    expect(
+      await screen.findByText("Repositories connected"),
+    ).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    await user.click(await screen.findByRole("tab", { name: "Sync" }));
+    expect(
+      await screen.findByRole("button", { name: "Retry sync job" }),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Retry sync job" }));
+    expect(await screen.findByText("Sync job retried")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    await user.click(await screen.findByRole("tab", { name: "Members" }));
     await user.type(screen.getByPlaceholderText("User UUID"), userId);
     await user.click(screen.getByRole("button", { name: "Add member" }));
+    expect(await screen.findByText("Member added")).toBeInTheDocument();
 
     const requestedUrls = fetchStub.mock.calls.map(([input]) => String(input));
-    expect(requestedUrls.some((url) => url.includes(`/github/repositories/select`))).toBe(true);
-    expect(requestedUrls.some((url) => url.includes(`/sync-jobs/${syncJobId}/retry`))).toBe(true);
-    expect(requestedUrls.some((url) => url.includes(`/organizations/${organizationId}/members`))).toBe(true);
-  });
+    expect(
+      requestedUrls.some((url) => url.includes(`/github/repositories/select`)),
+    ).toBe(true);
+    expect(
+      requestedUrls.some((url) =>
+        url.includes(`/sync-jobs/${syncJobId}/retry`),
+      ),
+    ).toBe(true);
+    expect(
+      requestedUrls.some((url) =>
+        url.includes(`/organizations/${organizationId}/members`),
+      ),
+    ).toBe(true);
+  }, 15000);
 
   it("handles installation callback search params, including the required state token", async () => {
     const fetchStub = createSettingsFetchStub();
     vi.stubGlobal("fetch", fetchStub);
 
-    renderApp(`/settings?organizationId=${organizationId}&installation_id=999&state=opaque-state-token&setup_action=install`);
+    renderApp(
+      `/settings?organizationId=${organizationId}&installation_id=999&state=opaque-state-token&setup_action=install`,
+    );
 
     expect(await screen.findByText("GitHub connection")).toBeInTheDocument();
     expect(
       fetchStub.mock.calls.some(([input]) => {
         const url = String(input);
         return (
-          url.includes(`/organizations/${organizationId}/github/installations/callback`) &&
+          url.includes(
+            `/organizations/${organizationId}/github/installations/callback`,
+          ) &&
           url.includes("installation_id=999") &&
           url.includes("state=opaque-state-token") &&
           url.includes("setup_action=install")
@@ -394,11 +570,15 @@ describe("settings route", () => {
     const fetchStub = createSettingsFetchStub();
     vi.stubGlobal("fetch", fetchStub);
 
-    renderApp(`/settings?organizationId=${organizationId}&installation_id=999&setup_action=install`);
+    renderApp(
+      `/settings?organizationId=${organizationId}&installation_id=999&setup_action=install`,
+    );
 
     expect(await screen.findByText("GitHub connection")).toBeInTheDocument();
     expect(
-      fetchStub.mock.calls.some(([input]) => String(input).includes("/github/installations/callback")),
+      fetchStub.mock.calls.some(([input]) =>
+        String(input).includes("/github/installations/callback"),
+      ),
     ).toBe(false);
   });
 
@@ -407,9 +587,15 @@ describe("settings route", () => {
     vi.stubGlobal("fetch", fetchStub);
     const user = userEvent.setup();
 
-    renderApp(`/settings?organizationId=${organizationId}&installation_id=999&state=opaque-state-token&setup_action=install`);
+    renderApp(
+      `/settings?organizationId=${organizationId}&installation_id=999&state=opaque-state-token&setup_action=install`,
+    );
 
-    expect(await screen.findByText("Could not complete GitHub installation callback")).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "Could not complete GitHub installation callback",
+      ),
+    ).toBeInTheDocument();
 
     const callbackCallsBefore = fetchStub.mock.calls.filter(([input]) =>
       String(input).includes("/github/installations/callback"),
@@ -431,24 +617,122 @@ describe("settings route", () => {
 
     renderApp("/settings");
 
+    await user.click(await screen.findByRole("tab", { name: "GitHub" }));
     expect(await screen.findByText("GitHub connection")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Disconnect GitHub" }));
     expect(
       fetchStub.mock.calls.some(([input], index) => {
         const init = fetchStub.mock.calls[index][1] as RequestInit | undefined;
-        return String(input).includes("/github/connection") && init?.method === "DELETE";
+        return (
+          String(input).includes("/github/connection") &&
+          init?.method === "DELETE"
+        );
       }),
     ).toBe(false);
 
-    await user.click(screen.getByRole("button", { name: "Confirm disconnect" }));
+    await user.click(
+      screen.getByRole("button", { name: "Confirm disconnect" }),
+    );
 
     expect(
       fetchStub.mock.calls.some(([input], index) => {
         const init = fetchStub.mock.calls[index][1] as RequestInit | undefined;
-        return String(input).includes(`/organizations/${organizationId}/github/connection`) && init?.method === "DELETE";
+        return (
+          String(input).includes(
+            `/organizations/${organizationId}/github/connection`,
+          ) && init?.method === "DELETE"
+        );
       }),
     ).toBe(true);
+  });
+
+  it("creates a new organization through the New organization dialog", async () => {
+    const fetchStub = createSettingsFetchStub();
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+
+    renderApp("/settings");
+
+    expect(await screen.findByText("Organization profile")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Link another GitHub organization to DevLens."),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "New organization" }));
+    expect(
+      await screen.findByText("Link another GitHub organization to DevLens."),
+    ).toBeInTheDocument();
+
+    const createButton = screen.getByRole("button", {
+      name: "Create organization",
+    });
+    expect(createButton).toBeDisabled();
+
+    await user.type(screen.getByPlaceholderText("GitHub id"), "2");
+    await user.type(screen.getByPlaceholderText("slug"), "new-org");
+    await user.type(screen.getByPlaceholderText("name"), "New Org");
+    expect(createButton).toBeEnabled();
+
+    await user.click(createButton);
+
+    expect(await screen.findByText("Organization created")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Link another GitHub organization to DevLens."),
+    ).not.toBeInTheDocument();
+    expect(
+      fetchStub.mock.calls.some(([input], index) => {
+        const init = fetchStub.mock.calls[index][1] as RequestInit | undefined;
+        return (
+          String(input).endsWith("/api/v1/organizations") &&
+          init?.method === "POST"
+        );
+      }),
+    ).toBe(true);
+  });
+
+  it("deletes an organization after a confirmation step", async () => {
+    const fetchStub = createSettingsFetchStub();
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+
+    const { router } = renderApp("/settings");
+
+    expect(await screen.findByText("Organization profile")).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Delete organization" }),
+    );
+    expect(
+      fetchStub.mock.calls.some(([input], index) => {
+        const init = fetchStub.mock.calls[index][1] as RequestInit | undefined;
+        return (
+          String(input).includes(`/organizations/${organizationId}`) &&
+          init?.method === "DELETE"
+        );
+      }),
+    ).toBe(false);
+
+    await user.click(screen.getByRole("button", { name: "Confirm delete" }));
+
+    expect(await screen.findByText("Organization deleted")).toBeInTheDocument();
+    expect(
+      fetchStub.mock.calls.some(([input], index) => {
+        const init = fetchStub.mock.calls[index][1] as RequestInit | undefined;
+        return (
+          String(input).includes(`/organizations/${organizationId}`) &&
+          init?.method === "DELETE"
+        );
+      }),
+    ).toBe(true);
+
+    // Regression: after deleting the currently selected organization, its id
+    // must be cleared from the URL — otherwise the page keeps pointing at a
+    // now-deleted organization instead of falling back to another one.
+    expect(router.state.location.search.organizationId).toBeUndefined();
+    expect(
+      await screen.findByText("Create your first organization"),
+    ).toBeInTheDocument();
   });
 
   it("saves rule settings with the full section payload", async () => {
@@ -458,20 +742,37 @@ describe("settings route", () => {
 
     renderApp("/settings");
 
-    expect(await screen.findByText("Insight & metric rules")).toBeInTheDocument();
-    await user.click(await screen.findByRole("button", { name: "Save rule settings" }));
+    await user.click(
+      await screen.findByRole("tab", { name: "Rules & retention" }),
+    );
+    expect(
+      await screen.findByText("Insight & metric rules"),
+    ).toBeInTheDocument();
+    await user.click(
+      await screen.findByRole("button", { name: "Save rule settings" }),
+    );
 
     const rulesPutCall = fetchStub.mock.calls.find(([input], index) => {
       const init = fetchStub.mock.calls[index][1] as RequestInit | undefined;
-      return String(input).includes(`/organizations/${organizationId}/settings/rules`) && init?.method === "PUT";
+      return (
+        String(input).includes(
+          `/organizations/${organizationId}/settings/rules`,
+        ) && init?.method === "PUT"
+      );
     });
 
     expect(rulesPutCall).toBeDefined();
-    const body = JSON.parse((rulesPutCall?.[1] as RequestInit).body as string) as {
+    const body = JSON.parse(
+      (rulesPutCall?.[1] as RequestInit).body as string,
+    ) as {
       largePR: unknown;
       metrics: { defaultDayType: string };
     };
-    expect(body.largePR).toEqual({ enabled: true, filesThreshold: 25, totalChangesThreshold: 800 });
+    expect(body.largePR).toEqual({
+      enabled: true,
+      filesThreshold: 25,
+      totalChangesThreshold: 800,
+    });
     expect(body.metrics.defaultDayType).toBe("calendar");
   });
 
@@ -482,18 +783,80 @@ describe("settings route", () => {
 
     renderApp("/settings");
 
+    await user.click(
+      await screen.findByRole("tab", { name: "Rules & retention" }),
+    );
     expect(await screen.findByText("Data retention")).toBeInTheDocument();
-    await user.click(await screen.findByRole("button", { name: "Save retention settings" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Save retention settings" }),
+    );
 
     const retentionPutCall = fetchStub.mock.calls.find(([input], index) => {
       const init = fetchStub.mock.calls[index][1] as RequestInit | undefined;
-      return String(input).includes(`/organizations/${organizationId}/settings/retention`) && init?.method === "PUT";
+      return (
+        String(input).includes(
+          `/organizations/${organizationId}/settings/retention`,
+        ) && init?.method === "PUT"
+      );
     });
 
     expect(retentionPutCall).toBeDefined();
-    expect(JSON.parse((retentionPutCall?.[1] as RequestInit).body as string)).toEqual({
+    expect(
+      JSON.parse((retentionPutCall?.[1] as RequestInit).body as string),
+    ).toEqual({
       analyticsRawRetentionDays: 45,
     });
+  });
+
+  it("keeps a manually checked repository selected after paginating to another page", async () => {
+    const fetchStub = createSettingsFetchStub({ accessibleTwoPages: true });
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+
+    renderApp("/settings");
+
+    await user.click(await screen.findByRole("tab", { name: "GitHub" }));
+    expect(
+      await screen.findByText("devlens-labs/page-one-repo"),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox"));
+
+    await user.click(screen.getByRole("button", { name: "Next page" }));
+    expect(
+      await screen.findByText("devlens-labs/page-two-repo"),
+    ).toBeInTheDocument();
+    // Wait for the page-2 query to fully settle (and the merge effect to run
+    // against it) before proceeding, so the click below reflects the final
+    // post-pagination selection state rather than racing it.
+    expect(
+      await screen.findByText(
+        "1 accessible repositories selected for connection.",
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Connect selected repositories" }),
+    );
+    expect(
+      await screen.findByText("Repositories connected"),
+    ).toBeInTheDocument();
+
+    const selectCall = fetchStub.mock.calls.find(([input], index) => {
+      const init = fetchStub.mock.calls[index][1] as RequestInit | undefined;
+      return (
+        String(input).includes("/github/repositories/select") &&
+        init?.method === "POST"
+      );
+    });
+    expect(selectCall).toBeDefined();
+    const body = JSON.parse(
+      (selectCall?.[1] as RequestInit).body as string,
+    ) as { repositoryIds: number[] };
+    // Only the repo checked on page 1 (2001) should be submitted — page 2's
+    // repo (2002) was never checked, and page 1's pick must survive
+    // navigating to page 2 rather than being silently dropped.
+    expect(body.repositoryIds).toEqual([2001]);
   });
 
   it("blocks sync when repository onboarding is incomplete", async () => {
@@ -504,25 +867,100 @@ describe("settings route", () => {
         body: {
           error: {
             code: "REPOSITORY_ONBOARDING_REQUIRED",
-            message: "Repository must be selected from the GitHub installation before syncing",
+            message:
+              "Repository must be selected from the GitHub installation before syncing",
             requestId: "req-409",
           },
         },
       },
     });
     vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
 
     renderApp("/settings");
 
-    expect(await screen.findByText("Managed repository sync")).toBeInTheDocument();
-    expect(await screen.findByText("Repository selection is required before sync")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Start incremental sync" })).toBeDisabled();
+    await user.click(await screen.findByRole("tab", { name: "Sync" }));
+    expect(
+      await screen.findByText("Managed repository sync"),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText("Repository selection is required before sync"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Start incremental sync" }),
+    ).toBeDisabled();
     expect(
       fetchStub.mock.calls.some((call) => {
-        const [input, requestInit] = call as [string | URL, RequestInit | undefined];
+        const [input, requestInit] = call as [
+          string | URL,
+          RequestInit | undefined,
+        ];
         const url = new URL(String(input));
-        return url.pathname === `/api/v1/repositories/${repositoryId}/sync` && (requestInit?.method ?? "GET") === "POST";
+        return (
+          url.pathname === `/api/v1/repositories/${repositoryId}/sync` &&
+          (requestInit?.method ?? "GET") === "POST"
+        );
       }),
     ).toBe(false);
+  });
+
+  it("marks the member UUID field as required and keeps Add member disabled until it is valid", async () => {
+    // Typing re-renders the whole settings page (now with tooltips/dialogs on
+    // every card), which is slower under jsdom than the default 5s budget.
+    const fetchStub = createSettingsFetchStub();
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+
+    renderApp("/settings");
+
+    await user.click(await screen.findByRole("tab", { name: "Members" }));
+    expect(await screen.findByText("Organization members")).toBeInTheDocument();
+    expect(screen.getByText("User UUID").parentElement).toHaveTextContent(
+      "User UUID*",
+    );
+
+    const addMemberButton = screen.getByRole("button", { name: "Add member" });
+    expect(addMemberButton).toBeDisabled();
+
+    const userIdInput = screen.getByPlaceholderText("User UUID");
+    await user.type(userIdInput, "not-a-uuid");
+    expect(await screen.findByText("Must be a valid UUID")).toBeInTheDocument();
+    expect(addMemberButton).toBeDisabled();
+
+    await user.clear(userIdInput);
+    await user.type(userIdInput, userId);
+    expect(screen.queryByText("Must be a valid UUID")).not.toBeInTheDocument();
+    expect(addMemberButton).toBeEnabled();
+  }, 15000);
+
+  it("prompts to create the first organization when none exist yet", async () => {
+    const fetchStub = vi.fn().mockImplementation((input: string | URL) => {
+      const url = new URL(String(input));
+
+      if (url.pathname === "/api/v1/organizations") {
+        return Promise.resolve(
+          jsonResponse(200, {
+            data: [],
+            pagination: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 },
+          }),
+        );
+      }
+
+      return Promise.reject(new Error(`Unhandled URL: ${url.toString()}`));
+    });
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+
+    renderApp("/settings");
+
+    expect(
+      await screen.findByText("Create your first organization"),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "New organization" }));
+    expect(
+      await screen.findByText("Link another GitHub organization to DevLens."),
+    ).toBeInTheDocument();
   });
 });

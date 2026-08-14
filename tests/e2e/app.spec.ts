@@ -8,7 +8,7 @@ import { test, expect } from "@playwright/test";
 async function login(page: import("@playwright/test").Page) {
   await page.goto("/login");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("heading", { name: "DevLens Web Foundation" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Engineering workflow dashboard" })).toBeVisible();
 }
 
 test("redirects an unauthenticated visitor to login", async ({ page }) => {
@@ -57,5 +57,8 @@ test("navigates to insights and settings", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Process insights" })).toBeVisible();
 
   await page.getByRole("link", { name: "Settings" }).click();
+  await expect(page.getByRole("tab", { name: "Organization" })).toBeVisible();
+
+  await page.getByRole("tab", { name: "GitHub" }).click();
   await expect(page.getByText("GitHub connection")).toBeVisible();
 });

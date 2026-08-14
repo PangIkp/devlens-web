@@ -8,12 +8,12 @@ describe("RequireAuth", () => {
     expect(await screen.findByText("Sign in to DevLens")).toBeInTheDocument();
   });
 
-  it("redirects the index route to /login when unauthenticated, preserving the origin path", async () => {
+  it("redirects the index route to /login via /dashboard when unauthenticated", async () => {
     const { router } = renderApp("/", { authenticated: false });
 
     await screen.findByText("Sign in to DevLens");
 
     expect(router.state.location.pathname).toBe("/login");
-    expect(router.state.location.search).toEqual({ redirect: "/" });
+    expect(router.state.location.search.redirect).toMatch(/^\/dashboard/);
   });
 });
