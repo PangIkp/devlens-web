@@ -12,8 +12,8 @@ import { organizationsKeys } from "@/features/organizations/use-organizations-qu
 export const githubKeys = {
   all: ["github"] as const,
   connection: (organizationId: string) => [...githubKeys.all, "connection", organizationId] as const,
-  repositories: (organizationId: string, page: number, pageSize: number) =>
-    [...githubKeys.all, "repositories", organizationId, page, pageSize] as const,
+  repositories: (organizationId: string, page: number, pageSize: number, search?: string) =>
+    [...githubKeys.all, "repositories", organizationId, page, pageSize, search ?? ""] as const,
 };
 
 export function useGitHubConnectionQuery(organizationId: string, enabled = true) {
@@ -51,12 +51,21 @@ export function useAccessibleGitHubRepositoriesQuery(params: {
   organizationId: string;
   page: number;
   pageSize: number;
+  search?: string;
 }, enabled = true) {
   return useQuery({
-    queryKey: githubKeys.repositories(params.organizationId, params.page, params.pageSize),
+    queryKey: githubKeys.repositories(params.organizationId, params.page, params.pageSize, params.search),
     queryFn: () => listAccessibleGitHubRepositories(params),
     enabled: enabled && params.organizationId.length > 0,
-    placeholderData: (previous) => previous,
+    placeholderData: (previousData, previousQuery) => {
+      // Only reuse placeholder data within the same organization (e.g.
+      // across a page or search change). Otherwise switching to an org
+      // whose query is disabled (no GitHub installation yet) would keep
+      // showing the previous organization's repository list forever —
+      // a disabled query never fetches, so nothing would ever replace it.
+      const previousOrganizationId = previousQuery?.queryKey[2];
+      return previousOrganizationId === params.organizationId ? previousData : undefined;
+    },
   });
 }
 

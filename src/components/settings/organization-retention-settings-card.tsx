@@ -13,7 +13,6 @@ import {
   useUpdateOrganizationRetentionSettingsMutation,
 } from "@/features/organization-settings/organization-settings.query";
 import { getErrorMessage } from "@/lib/api-errors";
-import { formatDateTime } from "@/components/repositories/repository-utils";
 
 export function OrganizationRetentionSettingsCard({
   organizationId,
@@ -38,14 +37,11 @@ export function OrganizationRetentionSettingsCard({
     <Card className="space-y-4">
       <div className="flex items-center gap-2">
         <h2 className="text-xl font-semibold">Data retention</h2>
-        <InfoTooltip content="How many days of raw analytics data to keep for this organization." />
-      </div>
-
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
-        Not enforced yet: the backend still purges data on a single global
-        schedule shared by all organizations. This value is saved for the
-        backend team to build enforcement against later — changing it does not
-        delete or preserve any data right now.
+        <InfoTooltip
+          content={
+            "How many days to keep this organization's raw per-PR/commit/deployment data (used by Dashboard charts) before it's deleted for good. Pull Requests and Insights data is unaffected and never expires. If dashboard history goes missing, run \"Start full sync\" (not incremental) on the repository from the Sync tab to pull it back in."
+          }
+        />
       </div>
 
       {query.isError ? (
@@ -78,6 +74,7 @@ export function OrganizationRetentionSettingsCard({
           </label>
           <Button
             type="button"
+            aria-label="Save retention settings"
             disabled={mutation.isPending}
             onClick={() =>
               draftDays !== null &&
@@ -93,13 +90,8 @@ export function OrganizationRetentionSettingsCard({
               )
             }
           >
-            {mutation.isPending ? "Saving..." : "Save retention settings"}
+            {mutation.isPending ? "Saving..." : "Save"}
           </Button>
-          {query.data?.data.updatedAt ? (
-            <span className="text-xs text-muted-foreground">
-              Last updated {formatDateTime(query.data.data.updatedAt)}
-            </span>
-          ) : null}
         </div>
       ) : null}
       <SuccessModal

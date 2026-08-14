@@ -2249,6 +2249,7 @@ export interface operations {
             query?: {
                 page?: components["parameters"]["Page"];
                 pageSize?: components["parameters"]["PageSize"];
+                search?: components["parameters"]["Search"];
             };
             header?: never;
             path: {

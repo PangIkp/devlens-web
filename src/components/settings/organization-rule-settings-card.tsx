@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ErrorState } from "@/components/shared/query-state";
 import { InfoTooltip } from "@/components/shared/info-tooltip";
 import {
@@ -15,7 +15,6 @@ import {
 } from "@/features/organization-settings/organization-settings.query";
 import type { OrganizationRuleSettings } from "@/features/organization-settings/organization-settings.schemas";
 import { getErrorMessage } from "@/lib/api-errors";
-import { formatDateTime } from "@/components/repositories/repository-utils";
 
 type Draft = Omit<OrganizationRuleSettings, "updatedAt">;
 
@@ -342,21 +341,24 @@ export function OrganizationRuleSettingsCard({
                     Default day type
                   </span>
                   <Select
-                    aria-label="Default day type"
                     value={draft.metrics.defaultDayType}
-                    onChange={(event) =>
+                    onValueChange={(value) =>
                       setDraft({
                         ...draft,
                         metrics: {
                           ...draft.metrics,
-                          defaultDayType: event.target.value as
-                            "calendar" | "business",
+                          defaultDayType: value as "calendar" | "business",
                         },
                       })
                     }
                   >
-                    <option value="calendar">Calendar day</option>
-                    <option value="business">Business day</option>
+                    <SelectTrigger aria-label="Default day type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="calendar">Calendar day</SelectItem>
+                      <SelectItem value="business">Business day</SelectItem>
+                    </SelectContent>
                   </Select>
                 </label>
                 <NumberField
@@ -399,6 +401,7 @@ export function OrganizationRuleSettingsCard({
           <div className="flex flex-wrap items-center gap-3">
             <Button
               type="button"
+              aria-label="Save rule settings"
               disabled={mutation.isPending}
               onClick={() =>
                 draft &&
@@ -415,13 +418,8 @@ export function OrganizationRuleSettingsCard({
                 )
               }
             >
-              {mutation.isPending ? "Saving..." : "Save rule settings"}
+              {mutation.isPending ? "Saving..." : "Save"}
             </Button>
-            {query.data?.data.updatedAt ? (
-              <span className="text-xs text-muted-foreground">
-                Last updated {formatDateTime(query.data.data.updatedAt)}
-              </span>
-            ) : null}
           </div>
         </div>
       ) : null}

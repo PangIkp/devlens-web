@@ -61,6 +61,7 @@ export async function listAccessibleGitHubRepositories(params: {
   organizationId: string;
   page?: number;
   pageSize?: number;
+  search?: string;
 }) {
   const response = await apiRequest<AccessibleRepositoriesResponse>(
     `/organizations/${params.organizationId}/github/repositories`,
@@ -70,6 +71,7 @@ export async function listAccessibleGitHubRepositories(params: {
     {
       page: params.page ?? 1,
       pageSize: params.pageSize ?? 20,
+      search: params.search || undefined,
     },
   );
 

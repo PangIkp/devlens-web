@@ -933,6 +933,23 @@ describe("settings route", () => {
     expect(addMemberButton).toBeEnabled();
   }, 15000);
 
+  it("does not request accessible repositories when opening the GitHub tab for an org with no installation", async () => {
+    const fetchStub = createSettingsFetchStub({ connectionState: "not_connected" });
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+
+    renderApp("/settings");
+
+    expect(await screen.findByText("Organization profile")).toBeInTheDocument();
+    await user.click(await screen.findByRole("tab", { name: "GitHub" }));
+    expect(await screen.findByText("Not Connected")).toBeInTheDocument();
+
+    const requestedUrls = fetchStub.mock.calls.map(([input]) => String(input));
+    expect(
+      requestedUrls.some((url) => url.includes(`/github/repositories`) && !url.includes("/select")),
+    ).toBe(false);
+  });
+
   it("prompts to create the first organization when none exist yet", async () => {
     const fetchStub = vi.fn().mockImplementation((input: string | URL) => {
       const url = new URL(String(input));
@@ -962,5 +979,89 @@ describe("settings route", () => {
     expect(
       await screen.findByText("Link another GitHub organization to DevLens."),
     ).toBeInTheDocument();
+  });
+
+  it("does not leak a previous organization's accessible repositories into one with no GitHub installation", async () => {
+    const connectedOrgId = "66666666-6666-4666-8666-666666666666";
+    const disconnectedOrgId = "77777777-7777-4777-8777-777777777777";
+
+    function orgResponse(id: string, name: string) {
+      return { id, githubId: id === connectedOrgId ? 1 : 2, slug: name, name, createdAt: "2026-08-10T10:00:00Z" };
+    }
+
+    const fetchStub = vi.fn().mockImplementation((input: string | URL) => {
+      const url = new URL(String(input));
+      const match = url.pathname.match(/^\/api\/v1\/organizations\/([^/]+)(\/.*)?$/);
+
+      if (url.pathname === "/api/v1/organizations") {
+        return Promise.resolve(
+          jsonResponse(200, {
+            data: [orgResponse(connectedOrgId, "Connected Org"), orgResponse(disconnectedOrgId, "Disconnected Org")],
+            pagination: { page: 1, pageSize: 20, totalItems: 2, totalPages: 2 },
+          }),
+        );
+      }
+
+      if (match) {
+        const [, orgId, rest = ""] = match;
+
+        if (rest === "") {
+          return Promise.resolve(jsonResponse(200, { data: orgResponse(orgId, orgId === connectedOrgId ? "Connected Org" : "Disconnected Org") }));
+        }
+        if (rest === "/members") {
+          return Promise.resolve(jsonResponse(200, { data: [], pagination: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 } }));
+        }
+        if (rest === "/repositories") {
+          return Promise.resolve(jsonResponse(200, { data: [], pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 } }));
+        }
+        if (rest === "/github/connection") {
+          const state = orgId === connectedOrgId ? "connected" : "not_connected";
+          return Promise.resolve(
+            jsonResponse(200, {
+              data: { organizationId: orgId, provider: "github", state, connectedRepositories: orgId === connectedOrgId ? 1 : 0 },
+            }),
+          );
+        }
+        if (rest === "/github/repositories") {
+          if (orgId !== connectedOrgId) {
+            // The disconnected org's query must stay disabled and never
+            // reach the backend — if it does, the real API would 404 with
+            // "GitHub installation not found" the same way it does live.
+            return Promise.resolve(
+              jsonResponse(404, { error: { code: "NOT_FOUND", message: "GitHub installation not found" } }),
+            );
+          }
+          return Promise.resolve(
+            jsonResponse(200, {
+              data: [
+                {
+                  githubRepositoryId: 9001,
+                  fullName: "connected-org/only-repo",
+                  private: false,
+                  installationStatus: "accessible",
+                  selectionStatus: "not_selected",
+                },
+              ],
+              pagination: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
+            }),
+          );
+        }
+      }
+
+      return Promise.reject(new Error(`Unhandled URL: ${url.toString()}`));
+    });
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+
+    renderApp(`/settings?organizationId=${connectedOrgId}`);
+
+    await user.click(await screen.findByRole("tab", { name: "GitHub" }));
+    expect(await screen.findByText("connected-org/only-repo")).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText("Settings organization"));
+    await user.click(await screen.findByRole("option", { name: "Disconnected Org" }));
+
+    expect(await screen.findByText("Not Connected")).toBeInTheDocument();
+    expect(screen.queryByText("connected-org/only-repo")).not.toBeInTheDocument();
   });
 });

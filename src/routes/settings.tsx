@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { createRoute } from "@tanstack/react-router";
-import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Search, X } from "lucide-react";
 import { z } from "zod";
 import { AppLayout } from "@/components/layout/app-layout";
 import { PageShell } from "@/components/layout/page-shell";
@@ -11,7 +12,7 @@ import { StatusPill } from "@/components/shared/status-pill";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
@@ -24,6 +25,7 @@ import {
 } from "@/components/shared/success-modal";
 import { OrganizationRetentionSettingsCard } from "@/components/settings/organization-retention-settings-card";
 import { OrganizationRuleSettingsCard } from "@/components/settings/organization-rule-settings-card";
+import { organizationSettingsKeys } from "@/features/organization-settings/organization-settings.query";
 import { useFieldValidation } from "@/lib/use-field-validation";
 import {
   useAccessibleGitHubRepositoriesQuery,
@@ -70,6 +72,7 @@ const settingsSearchSchema = z.object({
   repositoryId: z.string().min(1).optional(),
   syncJobId: z.string().min(1).optional(),
   accessiblePage: z.number().int().min(1).catch(1).default(1),
+  accessibleSearch: z.string().optional(),
   syncPage: z.number().int().min(1).catch(1).default(1),
   installation_id: z.number().int().optional(),
   state: z.string().optional(),
@@ -98,6 +101,10 @@ export const settingsRoute = createRoute({
           : typeof search.accessiblePage === "string"
             ? Number(search.accessiblePage)
             : 1,
+      accessibleSearch:
+        typeof search.accessibleSearch === "string"
+          ? search.accessibleSearch
+          : undefined,
       syncPage:
         typeof search.syncPage === "number"
           ? search.syncPage
@@ -198,6 +205,7 @@ const newMemberSchema = z.object({
 function SettingsPage() {
   const navigate = settingsRoute.useNavigate();
   const search = settingsRoute.useSearch();
+  const queryClient = useQueryClient();
   const organizationsQuery = useOrganizationsQuery();
   const organizations = useMemo(
     () => organizationsQuery.data?.data ?? [],
@@ -223,6 +231,7 @@ function SettingsPage() {
       organizationId: selectedOrganizationId ?? "",
       page: search.accessiblePage,
       pageSize: 20,
+      search: search.accessibleSearch,
     },
     Boolean(selectedOrganizationId) &&
       ["connected", "syncing", "sync_failed"].includes(
@@ -277,6 +286,9 @@ function SettingsPage() {
   const updateMemberMutation = useUpdateOrganizationMemberMutation();
   const deleteMemberMutation = useDeleteOrganizationMemberMutation();
 
+  const [accessibleSearchInput, setAccessibleSearchInput] = useState(
+    search.accessibleSearch ?? "",
+  );
   const [callbackKey, setCallbackKey] = useState<string | null>(null);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const [confirmDeleteOrganization, setConfirmDeleteOrganization] =
@@ -319,11 +331,27 @@ function SettingsPage() {
   });
 
   useEffect(() => {
-    if (!search.organizationId && organizations[0]?.id) {
+    if (organizations.length === 0) {
+      return;
+    }
+    const organizationStillExists = organizations.some(
+      (organization) => organization.id === search.organizationId,
+    );
+    if (!organizationStillExists) {
+      // Not just "absent" — search.organizationId can point at an org that
+      // was deleted (or never existed) in this browser tab's URL, e.g. after
+      // a stale bookmark/back-navigation or a delete that happened outside
+      // this session. Falling back only when the field was empty left the
+      // page stuck querying a dead org id instead of picking a real one.
       void navigate({
         search: (previous) => ({
           ...previous,
           organizationId: organizations[0].id,
+          repositoryId: undefined,
+          syncJobId: undefined,
+          accessiblePage: 1,
+          accessibleSearch: undefined,
+          syncPage: 1,
         }),
         replace: true,
       });
@@ -331,15 +359,19 @@ function SettingsPage() {
   }, [navigate, organizations, search.organizationId]);
 
   useEffect(() => {
-    if (
-      selectedOrganizationId &&
-      !search.repositoryId &&
-      managedRepositories[0]?.id
-    ) {
+    if (!selectedOrganizationId || managedRepositories.length === 0) {
+      return;
+    }
+    const repositoryStillExists = managedRepositories.some(
+      (repository) => repository.id === search.repositoryId,
+    );
+    if (!repositoryStillExists) {
       void navigate({
         search: (previous) => ({
           ...previous,
           repositoryId: managedRepositories[0].id,
+          syncJobId: undefined,
+          syncPage: 1,
         }),
         replace: true,
       });
@@ -371,6 +403,10 @@ function SettingsPage() {
       });
     }
   }, [organizationDetailQuery.data]);
+
+  useEffect(() => {
+    setAccessibleSearchInput(search.accessibleSearch ?? "");
+  }, [search.accessibleSearch]);
 
   useEffect(() => {
     const drafts = Object.fromEntries(
@@ -500,28 +536,33 @@ function SettingsPage() {
                     Organization
                   </span>
                   <Select
-                    aria-label="Settings organization"
                     value={selectedOrganizationId ?? ""}
-                    onChange={(event) => {
+                    onValueChange={(value) => {
                       setConfirmDisconnect(false);
                       setConfirmDeleteOrganization(false);
                       setNewMemberUserId("");
                       setNewMemberRole("member");
                       setSelectedAccessibleRepositoryIds([]);
                       updateSearch({
-                        organizationId: event.target.value,
+                        organizationId: value,
                         repositoryId: undefined,
                         syncJobId: undefined,
                         accessiblePage: 1,
+                        accessibleSearch: undefined,
                         syncPage: 1,
                       });
                     }}
                   >
-                    {organizations.map((organization) => (
-                      <option key={organization.id} value={organization.id}>
-                        {organization.name}
-                      </option>
-                    ))}
+                    <SelectTrigger aria-label="Settings organization">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {organizations.map((organization) => (
+                        <SelectItem key={organization.id} value={organization.id}>
+                          {organization.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
                   </Select>
                 </label>
 
@@ -546,11 +587,56 @@ function SettingsPage() {
 
               <Tabs
                 value={activeTab}
-                onValueChange={(value) =>
-                  updateSearch({ tab: value as SettingsTab })
-                }
+                onValueChange={(value) => {
+                  updateSearch({ tab: value as SettingsTab });
+                  // Every query above is mounted once at the page level, not
+                  // inside each tab's content, so switching tabs alone never
+                  // re-fetches them — force a refetch for whichever tab just
+                  // became active so its data can't silently go stale.
+                  // refetch() bypasses each query's own `enabled` gate (it
+                  // calls fetch() directly, regardless of `enabled`), so
+                  // every branch re-checks the same condition the query was
+                  // declared with — otherwise e.g. an org with no GitHub
+                  // installation yet would still fire the accessible-repos
+                  // request and surface a raw "installation not found" 404.
+                  if (!selectedOrganizationId) {
+                    return;
+                  }
+                  switch (value as SettingsTab) {
+                    case "organization":
+                      void organizationDetailQuery.refetch();
+                      break;
+                    case "github":
+                      void githubConnectionQuery.refetch();
+                      if (
+                        ["connected", "syncing", "sync_failed"].includes(
+                          githubConnectionQuery.data?.data.state ?? "",
+                        )
+                      ) {
+                        void accessibleRepositoriesQuery.refetch();
+                      }
+                      break;
+                    case "sync":
+                      void managedRepositoriesQuery.refetch();
+                      if (selectedRepositoryId) {
+                        void syncJobsQuery.refetch();
+                      }
+                      break;
+                    case "members":
+                      void organizationMembersQuery.refetch();
+                      break;
+                    case "rules":
+                      void queryClient.refetchQueries({
+                        queryKey: organizationSettingsKeys.rules(selectedOrganizationId),
+                      });
+                      void queryClient.refetchQueries({
+                        queryKey: organizationSettingsKeys.retention(selectedOrganizationId),
+                      });
+                      break;
+                  }
+                }}
               >
-                <TabsList>
+                <TabsList className="sticky top-0 z-10 bg-background/95 backdrop-blur">
                   <TabsTrigger value="organization">Organization</TabsTrigger>
                   <TabsTrigger value="github">GitHub</TabsTrigger>
                   <TabsTrigger value="sync">Sync</TabsTrigger>
@@ -779,6 +865,7 @@ function SettingsPage() {
                                               repositoryId: undefined,
                                               syncJobId: undefined,
                                               accessiblePage: 1,
+                                              accessibleSearch: undefined,
                                               syncPage: 1,
                                             });
                                           },
@@ -1024,6 +1111,26 @@ function SettingsPage() {
                       <p className="text-sm text-muted-foreground">
                         {accessibleSelectionSummary}
                       </p>
+                      <form
+                        className="flex gap-2"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          updateSearch({
+                            accessibleSearch: accessibleSearchInput || undefined,
+                            accessiblePage: 1,
+                          });
+                        }}
+                      >
+                        <Input
+                          value={accessibleSearchInput}
+                          onChange={(event) => setAccessibleSearchInput(event.target.value)}
+                          placeholder="Search repositories by name"
+                          aria-label="Search accessible repositories"
+                        />
+                        <Button type="submit" variant="outline" className="h-10 w-10 shrink-0 px-0" aria-label="Search">
+                          <Search className="h-4 w-4" />
+                        </Button>
+                      </form>
                       {accessibleRepositoriesQuery.isError ? (
                         <ErrorState
                           title="Could not load accessible repositories"
@@ -1046,7 +1153,11 @@ function SettingsPage() {
                       {accessibleRepositoriesQuery.data?.data.length === 0 ? (
                         <EmptyState
                           title="No accessible repositories"
-                          description="The current installation has not exposed repository data yet, or the organization is not connected."
+                          description={
+                            search.accessibleSearch
+                              ? `No repository matched "${search.accessibleSearch}". Try a different name.`
+                              : "The current installation has not exposed repository data yet, or the organization is not connected."
+                          }
                         />
                       ) : null}
                       <div className="max-h-96 divide-y divide-border/60 overflow-y-auto rounded-xl border border-border/70">
@@ -1207,25 +1318,29 @@ function SettingsPage() {
 
                       <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
                         <Select
-                          aria-label="Managed repository"
                           value={selectedRepositoryId ?? ""}
                           disabled={
                             !repositorySyncReady ||
                             managedRepositories.length === 0
                           }
-                          onChange={(event) =>
+                          onValueChange={(value) =>
                             updateSearch({
-                              repositoryId: event.target.value,
+                              repositoryId: value,
                               syncJobId: undefined,
                               syncPage: 1,
                             })
                           }
                         >
-                          {managedRepositories.map((repository) => (
-                            <option key={repository.id} value={repository.id}>
-                              {repository.fullName}
-                            </option>
-                          ))}
+                          <SelectTrigger aria-label="Managed repository">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {managedRepositories.map((repository) => (
+                              <SelectItem key={repository.id} value={repository.id}>
+                                {repository.fullName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
                         </Select>
                         <Button
                           type="button"
@@ -1605,19 +1720,23 @@ function SettingsPage() {
                                 </p>
                               </div>
                               <Select
-                                aria-label={`Role for member ${member.userId}`}
                                 value={memberDrafts[member.id] ?? member.role}
-                                onChange={(event) =>
+                                onValueChange={(value) =>
                                   setMemberDrafts((current) => ({
                                     ...current,
-                                    [member.id]: event.target.value as
+                                    [member.id]: value as
                                       "owner" | "admin" | "member",
                                   }))
                                 }
                               >
-                                <option value="owner">owner</option>
-                                <option value="admin">admin</option>
-                                <option value="member">member</option>
+                                <SelectTrigger aria-label={`Role for member ${member.userId}`}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="owner">owner</SelectItem>
+                                  <SelectItem value="admin">admin</SelectItem>
+                                  <SelectItem value="member">member</SelectItem>
+                                </SelectContent>
                               </Select>
                               <Button
                                 type="button"
@@ -1699,16 +1818,20 @@ function SettingsPage() {
                           </span>
                           <Select
                             value={newMemberRole}
-                            onChange={(event) =>
+                            onValueChange={(value) =>
                               setNewMemberRole(
-                                event.target.value as
-                                  "owner" | "admin" | "member",
+                                value as "owner" | "admin" | "member",
                               )
                             }
                           >
-                            <option value="owner">owner</option>
-                            <option value="admin">admin</option>
-                            <option value="member">member</option>
+                            <SelectTrigger aria-label="Role">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="owner">owner</SelectItem>
+                              <SelectItem value="admin">admin</SelectItem>
+                              <SelectItem value="member">member</SelectItem>
+                            </SelectContent>
                           </Select>
                         </label>
                         <div className="space-y-2">
@@ -1751,7 +1874,7 @@ function SettingsPage() {
 
                 <TabsContent value="rules">
                   {selectedOrganizationId ? (
-                    <section className="grid gap-6 xl:grid-cols-2">
+                    <section className="space-y-6">
                       <OrganizationRuleSettingsCard
                         organizationId={selectedOrganizationId}
                       />
