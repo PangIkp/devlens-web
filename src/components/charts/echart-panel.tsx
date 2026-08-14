@@ -144,7 +144,7 @@ export function EChartPanel({
         ref={containerRef}
         role="img"
         aria-label={title}
-        className="w-full rounded-2xl border border-border/70 bg-background/60"
+        className="relative w-full overflow-hidden rounded-2xl border border-border/70 bg-background/60"
         style={{ height }}
       />
     </div>

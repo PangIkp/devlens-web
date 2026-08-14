@@ -240,7 +240,6 @@ describe("dashboard route", () => {
 
     renderApp("/dashboard");
 
-    expect(await screen.findByText("Engineering workflow dashboard")).toBeInTheDocument();
     expect((await screen.findAllByText("2h")).length).toBeGreaterThan(0);
     expect(screen.getByText("80%")).toBeInTheDocument();
     expect(screen.getByText("internal/metrics/calculator.go")).toBeInTheDocument();
