@@ -6,7 +6,7 @@ import { formatDateTime } from "@/components/repositories/repository-utils";
 
 export function PullRequestList({ pullRequests }: { pullRequests: PullRequestListItem[] }) {
   return (
-    <div className="max-h-[32rem] divide-y divide-border/60 overflow-y-auto rounded-xl border border-border/70">
+    <div className="divide-y divide-border/60 rounded-xl border border-border/70">
       {pullRequests.map((pullRequest) => (
         <div key={pullRequest.id} className="p-5 transition-colors hover:bg-muted/60">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">

@@ -135,177 +135,182 @@ function PullRequestsPage() {
   return (
     <AppLayout>
       <PageShell unwrapped>
-        <div className="space-y-6">
-          <p className="text-sm font-medium uppercase tracking-[0.35em] text-accent">Pull Requests</p>
+        <Tabs
+          value={statusTab}
+          onValueChange={(value) =>
+            updateSearch({
+              status: value === "all" ? undefined : (value as NonNullable<typeof search.status>),
+              page: 1,
+            })
+          }
+          className="flex h-full min-h-0 flex-col space-y-6"
+        >
+          <div className="shrink-0 space-y-6 border-b border-border/60 pb-6">
+            <p className="text-sm font-medium uppercase tracking-[0.35em] text-accent">Pull Requests</p>
 
-          <form
-            className="grid gap-3 lg:grid-cols-[1.1fr_1.1fr_0.9fr_auto]"
-            onSubmit={(event) => {
-              event.preventDefault();
-              updateSearch({ search: searchInput || undefined, page: 1 });
-            }}
-          >
-            <label className="space-y-2">
-              <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Organization</span>
-              <Select
-                value={selectedOrganizationId ?? ""}
-                disabled={organizationsQuery.isLoading || organizations.length === 0}
-                onValueChange={(value) => updateSearch({ organizationId: value, repositoryId: undefined, page: 1 })}
-              >
-                <SelectTrigger aria-label="Organization">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {organizations.map((organization) => (
-                    <SelectItem key={organization.id} value={organization.id}>
-                      {organization.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
-            <label className="space-y-2">
-              <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Repository</span>
-              <Select
-                value={selectedRepositoryId ?? ""}
-                disabled={repositoriesQuery.isLoading || repositories.length === 0}
-                onValueChange={(value) => updateSearch({ repositoryId: value, page: 1 })}
-              >
-                <SelectTrigger aria-label="Repository">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {repositories.map((repository) => (
-                    <SelectItem key={repository.id} value={repository.id}>
-                      {repository.fullName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
-            <label className="space-y-2">
-              <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Sort</span>
-              <Select
-                value={`${search.sortBy}:${search.sortOrder}`}
-                onValueChange={(value) => {
-                  const [sortBy, sortOrder] = value.split(":") as [
-                    "createdAt" | "number",
-                    "asc" | "desc",
-                  ];
-                  updateSearch({ sortBy, sortOrder, page: 1 });
-                }}
-              >
-                <SelectTrigger aria-label="Sort pull requests">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="createdAt:desc">Newest first</SelectItem>
-                  <SelectItem value="createdAt:asc">Oldest first</SelectItem>
-                  <SelectItem value="number:desc">PR number (high to low)</SelectItem>
-                  <SelectItem value="number:asc">PR number (low to high)</SelectItem>
-                </SelectContent>
-              </Select>
-            </label>
-            <div className="flex items-end gap-3">
-              <Input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search PR title" aria-label="Pull request search" />
-              <Button type="submit">Apply</Button>
-            </div>
-          </form>
-
-          {!organizationsQuery.isLoading && !organizationsQuery.isError && organizations.length === 0 ? (
-            <EmptyState
-              title="No organizations available"
-              description="Your current account does not have access to any organization yet. Create one from Settings before browsing pull requests."
-              action={
-                <Button asChild variant="outline">
-                  <Link to="/settings">Open Settings</Link>
-                </Button>
-              }
-            />
-          ) : null}
-
-          {!repositoriesQuery.isLoading && !repositoriesQuery.isError && organizations.length > 0 && repositories.length === 0 ? (
-            <EmptyState
-              title="No repositories available"
-              description="This organization does not have a managed repository yet. Connect one from Settings before opening pull requests."
-              action={
-                <Button asChild variant="outline">
-                  <Link to="/settings">Open Settings</Link>
-                </Button>
-              }
-            />
-          ) : null}
-
-          {selectedRepositoryId ? (
-            <Tabs
-              value={statusTab}
-              onValueChange={(value) =>
-                updateSearch({
-                  status: value === "all" ? undefined : (value as NonNullable<typeof search.status>),
-                  page: 1,
-                })
-              }
+            <form
+              className="grid gap-3 lg:grid-cols-[1.1fr_1.1fr_0.9fr_auto]"
+              onSubmit={(event) => {
+                event.preventDefault();
+                updateSearch({ search: searchInput || undefined, page: 1 });
+              }}
             >
-              <TabsList className="sticky top-0 z-10 bg-background/95 backdrop-blur">
+              <label className="space-y-2">
+                <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Organization</span>
+                <Select
+                  value={selectedOrganizationId ?? ""}
+                  disabled={organizationsQuery.isLoading || organizations.length === 0}
+                  onValueChange={(value) => updateSearch({ organizationId: value, repositoryId: undefined, page: 1 })}
+                >
+                  <SelectTrigger aria-label="Organization">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {organizations.map((organization) => (
+                      <SelectItem key={organization.id} value={organization.id}>
+                        {organization.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+              <label className="space-y-2">
+                <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Repository</span>
+                <Select
+                  value={selectedRepositoryId ?? ""}
+                  disabled={repositoriesQuery.isLoading || repositories.length === 0}
+                  onValueChange={(value) => updateSearch({ repositoryId: value, page: 1 })}
+                >
+                  <SelectTrigger aria-label="Repository">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {repositories.map((repository) => (
+                      <SelectItem key={repository.id} value={repository.id}>
+                        {repository.fullName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+              <label className="space-y-2">
+                <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Sort</span>
+                <Select
+                  value={`${search.sortBy}:${search.sortOrder}`}
+                  onValueChange={(value) => {
+                    const [sortBy, sortOrder] = value.split(":") as [
+                      "createdAt" | "number",
+                      "asc" | "desc",
+                    ];
+                    updateSearch({ sortBy, sortOrder, page: 1 });
+                  }}
+                >
+                  <SelectTrigger aria-label="Sort pull requests">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="createdAt:desc">Newest first</SelectItem>
+                    <SelectItem value="createdAt:asc">Oldest first</SelectItem>
+                    <SelectItem value="number:desc">PR number (high to low)</SelectItem>
+                    <SelectItem value="number:asc">PR number (low to high)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </label>
+              <div className="flex items-end gap-3">
+                <Input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search PR title" aria-label="Pull request search" />
+                <Button type="submit">Apply</Button>
+              </div>
+            </form>
+
+            {!organizationsQuery.isLoading && !organizationsQuery.isError && organizations.length === 0 ? (
+              <EmptyState
+                title="No organizations available"
+                description="Your current account does not have access to any organization yet. Create one from Settings before browsing pull requests."
+                action={
+                  <Button asChild variant="outline">
+                    <Link to="/settings">Open Settings</Link>
+                  </Button>
+                }
+              />
+            ) : null}
+
+            {!repositoriesQuery.isLoading && !repositoriesQuery.isError && organizations.length > 0 && repositories.length === 0 ? (
+              <EmptyState
+                title="No repositories available"
+                description="This organization does not have a managed repository yet. Connect one from Settings before opening pull requests."
+                action={
+                  <Button asChild variant="outline">
+                    <Link to="/settings">Open Settings</Link>
+                  </Button>
+                }
+              />
+            ) : null}
+
+            {selectedRepositoryId ? (
+              <TabsList>
                 <TabsTrigger value="all">All</TabsTrigger>
                 <TabsTrigger value="open">Open</TabsTrigger>
                 <TabsTrigger value="merged">Merged</TabsTrigger>
                 <TabsTrigger value="closed">Closed</TabsTrigger>
               </TabsList>
+            ) : null}
+          </div>
 
-              <TabsContent value={statusTab} className="space-y-6">
-                {pullRequestsQuery.isError ? (
-                  <ErrorState
-                    title="Could not load pull requests"
-                    message={getErrorMessage(pullRequestsQuery.error)}
-                    onRetry={() => void pullRequestsQuery.refetch()}
-                  />
-                ) : null}
+          {selectedRepositoryId ? (
+            <TabsContent value={statusTab} className="flex min-h-0 flex-1 flex-col space-y-4">
+              {pullRequestsQuery.isError ? (
+                <ErrorState
+                  title="Could not load pull requests"
+                  message={getErrorMessage(pullRequestsQuery.error)}
+                  onRetry={() => void pullRequestsQuery.refetch()}
+                />
+              ) : null}
 
-                {pullRequestsQuery.data && pullRequestsQuery.data.data.length === 0 ? (
-                  <EmptyState
-                    title="No pull requests found"
-                    description="No pull request matched the current repository and filters."
-                  />
-                ) : null}
+              {pullRequestsQuery.data && pullRequestsQuery.data.data.length === 0 ? (
+                <EmptyState
+                  title="No pull requests found"
+                  description="No pull request matched the current repository and filters."
+                />
+              ) : null}
 
-                {pullRequestsQuery.isLoading ? (
-                  <PullRequestsSkeleton />
-                ) : pullRequestsQuery.data && pullRequestsQuery.data.data.length > 0 ? (
+              {pullRequestsQuery.isLoading ? (
+                <PullRequestsSkeleton />
+              ) : pullRequestsQuery.data && pullRequestsQuery.data.data.length > 0 ? (
+                <div className="min-h-0 flex-1 overflow-y-auto">
                   <PullRequestList pullRequests={pullRequestsQuery.data.data} />
-                ) : null}
+                </div>
+              ) : null}
 
-                {pullRequestsQuery.data ? (
-                  <div className="flex items-center justify-center gap-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      aria-label="Previous page"
-                      disabled={search.page <= 1}
-                      onClick={() => updateSearch({ page: search.page - 1 })}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <p className="text-sm text-muted-foreground">
-                      Page {pullRequestsQuery.data.pagination.page} / {Math.max(pullRequestsQuery.data.pagination.totalPages, 1)}
-                    </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      aria-label="Next page"
-                      disabled={pullRequestsQuery.data.pagination.page >= Math.max(pullRequestsQuery.data.pagination.totalPages, 1)}
-                      onClick={() => updateSearch({ page: search.page + 1 })}
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : null}
-              </TabsContent>
-            </Tabs>
+              {pullRequestsQuery.data && pullRequestsQuery.data.data.length > 0 ? (
+                <div className="flex items-center justify-center gap-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    aria-label="Previous page"
+                    disabled={search.page <= 1}
+                    onClick={() => updateSearch({ page: search.page - 1 })}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <p className="text-sm text-muted-foreground">
+                    Page {pullRequestsQuery.data.pagination.page} / {Math.max(pullRequestsQuery.data.pagination.totalPages, 1)}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    aria-label="Next page"
+                    disabled={pullRequestsQuery.data.pagination.page >= Math.max(pullRequestsQuery.data.pagination.totalPages, 1)}
+                    onClick={() => updateSearch({ page: search.page + 1 })}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : null}
+            </TabsContent>
           ) : null}
-        </div>
+        </Tabs>
       </PageShell>
     </AppLayout>
   );

@@ -160,238 +160,241 @@ function InsightsPage() {
   return (
     <AppLayout>
       <PageShell unwrapped>
-        <div className="space-y-6">
-          <p className="text-sm font-medium uppercase tracking-[0.35em] text-accent">Insights</p>
+        <Tabs
+          value={statusTab}
+          onValueChange={(value) =>
+            updateSearch({
+              status: value === "all" ? undefined : (value as NonNullable<typeof search.status>),
+              page: 1,
+            })
+          }
+          className="flex h-full min-h-0 flex-col space-y-6"
+        >
+          <div className="shrink-0 space-y-6 border-b border-border/60 pb-6">
+            <p className="text-sm font-medium uppercase tracking-[0.35em] text-accent">Insights</p>
 
-          <div className="grid gap-3 lg:grid-cols-[1.2fr_1.2fr_1fr_auto]">
-            <label className="space-y-2">
-              <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Organization</span>
-              <Select
-                value={selectedOrganizationId ?? ""}
-                disabled={organizationsQuery.isLoading || organizations.length === 0}
-                onValueChange={(value) => updateSearch({ organizationId: value, repositoryId: undefined, page: 1 })}
-              >
-                <SelectTrigger aria-label="Insight organization">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {organizations.map((organization) => (
-                    <SelectItem key={organization.id} value={organization.id}>
-                      {organization.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
+            <div className="grid gap-3 lg:grid-cols-[1.2fr_1.2fr_1fr_auto]">
+              <label className="space-y-2">
+                <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Organization</span>
+                <Select
+                  value={selectedOrganizationId ?? ""}
+                  disabled={organizationsQuery.isLoading || organizations.length === 0}
+                  onValueChange={(value) => updateSearch({ organizationId: value, repositoryId: undefined, page: 1 })}
+                >
+                  <SelectTrigger aria-label="Insight organization">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {organizations.map((organization) => (
+                      <SelectItem key={organization.id} value={organization.id}>
+                        {organization.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
 
-            <label className="space-y-2">
-              <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Repository</span>
-              <Select
-                value={search.repositoryId ?? "all"}
-                disabled={repositoriesQuery.isLoading || (repositoriesQuery.data?.data.length ?? 0) === 0}
-                onValueChange={(value) => updateSearch({ repositoryId: value === "all" ? undefined : value, page: 1 })}
-              >
-                <SelectTrigger aria-label="Insight repository">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All repositories</SelectItem>
-                  {(repositoriesQuery.data?.data ?? []).map((repository) => (
-                    <SelectItem key={repository.id} value={repository.id}>
-                      {repository.fullName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
+              <label className="space-y-2">
+                <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Repository</span>
+                <Select
+                  value={search.repositoryId ?? "all"}
+                  disabled={repositoriesQuery.isLoading || (repositoriesQuery.data?.data.length ?? 0) === 0}
+                  onValueChange={(value) => updateSearch({ repositoryId: value === "all" ? undefined : value, page: 1 })}
+                >
+                  <SelectTrigger aria-label="Insight repository">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All repositories</SelectItem>
+                    {(repositoriesQuery.data?.data ?? []).map((repository) => (
+                      <SelectItem key={repository.id} value={repository.id}>
+                        {repository.fullName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
 
-            <label className="space-y-2">
-              <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Type</span>
-              <Select
-                value={search.type ?? "all"}
-                onValueChange={(value) => updateSearch({ type: value === "all" ? undefined : (value as NonNullable<typeof search.type>), page: 1 })}
-              >
-                <SelectTrigger aria-label="Insight type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All types</SelectItem>
-                  <SelectItem value="slow_review_detection">Slow review</SelectItem>
-                  <SelectItem value="large_pr_detection">Large PR</SelectItem>
-                  <SelectItem value="hotspot_detection">Hotspot</SelectItem>
-                  <SelectItem value="review_concentration">Review concentration</SelectItem>
-                  <SelectItem value="deployment_failure_trend">Deployment failure trend</SelectItem>
-                  <SelectItem value="bottleneck_detection">Bottleneck</SelectItem>
-                </SelectContent>
-              </Select>
-            </label>
+              <label className="space-y-2">
+                <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Type</span>
+                <Select
+                  value={search.type ?? "all"}
+                  onValueChange={(value) => updateSearch({ type: value === "all" ? undefined : (value as NonNullable<typeof search.type>), page: 1 })}
+                >
+                  <SelectTrigger aria-label="Insight type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All types</SelectItem>
+                    <SelectItem value="slow_review_detection">Slow review</SelectItem>
+                    <SelectItem value="large_pr_detection">Large PR</SelectItem>
+                    <SelectItem value="hotspot_detection">Hotspot</SelectItem>
+                    <SelectItem value="review_concentration">Review concentration</SelectItem>
+                    <SelectItem value="deployment_failure_trend">Deployment failure trend</SelectItem>
+                    <SelectItem value="bottleneck_detection">Bottleneck</SelectItem>
+                  </SelectContent>
+                </Select>
+              </label>
 
-            <label className="space-y-2">
-              <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Date range</span>
-              <Select
-                value={String(selectedPreset)}
-                onValueChange={(value) => {
-                  const range = getDashboardDateRangeForPreset(Number(value) as 7 | 30 | 90);
-                  updateSearch({ from: range.from, to: range.to, page: 1 });
-                }}
-              >
-                <SelectTrigger aria-label="Insight date range">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="7">Last 7 Days</SelectItem>
-                  <SelectItem value="30">Last 30 Days</SelectItem>
-                  <SelectItem value="90">Last 90 Days</SelectItem>
-                </SelectContent>
-              </Select>
-            </label>
-          </div>
+              <label className="space-y-2">
+                <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Date range</span>
+                <Select
+                  value={String(selectedPreset)}
+                  onValueChange={(value) => {
+                    const range = getDashboardDateRangeForPreset(Number(value) as 7 | 30 | 90);
+                    updateSearch({ from: range.from, to: range.to, page: 1 });
+                  }}
+                >
+                  <SelectTrigger aria-label="Insight date range">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7">Last 7 Days</SelectItem>
+                    <SelectItem value="30">Last 30 Days</SelectItem>
+                    <SelectItem value="90">Last 90 Days</SelectItem>
+                  </SelectContent>
+                </Select>
+              </label>
+            </div>
 
-          {!organizationsQuery.isLoading && !organizationsQuery.isError && organizations.length === 0 ? (
-            <EmptyState
-              title="No organizations available"
-              description="Your current account does not have access to any organization yet. Create one from Settings before reviewing insights."
-              action={
-                <Button asChild variant="outline">
-                  <Link to="/settings">Open Settings</Link>
-                </Button>
-              }
-            />
-          ) : null}
+            {!organizationsQuery.isLoading && !organizationsQuery.isError && organizations.length === 0 ? (
+              <EmptyState
+                title="No organizations available"
+                description="Your current account does not have access to any organization yet. Create one from Settings before reviewing insights."
+                action={
+                  <Button asChild variant="outline">
+                    <Link to="/settings">Open Settings</Link>
+                  </Button>
+                }
+              />
+            ) : null}
 
-          {!repositoriesQuery.isLoading && !repositoriesQuery.isError && organizations.length > 0 && (repositoriesQuery.data?.data.length ?? 0) === 0 ? (
-            <EmptyState
-              title="No repositories available"
-              description="This organization does not have any managed repositories yet, so the backend cannot generate insights for it."
-            />
-          ) : null}
+            {!repositoriesQuery.isLoading && !repositoriesQuery.isError && organizations.length > 0 && (repositoriesQuery.data?.data.length ?? 0) === 0 ? (
+              <EmptyState
+                title="No repositories available"
+                description="This organization does not have any managed repositories yet, so the backend cannot generate insights for it."
+              />
+            ) : null}
 
-          {organizations.length > 0 ? (
-            <Tabs
-              value={statusTab}
-              onValueChange={(value) =>
-                updateSearch({
-                  status: value === "all" ? undefined : (value as NonNullable<typeof search.status>),
-                  page: 1,
-                })
-              }
-            >
-              <TabsList className="sticky top-0 z-10 bg-background/95 backdrop-blur">
+            {organizations.length > 0 ? (
+              <TabsList>
                 <TabsTrigger value="all">All</TabsTrigger>
                 <TabsTrigger value="open">Open</TabsTrigger>
                 <TabsTrigger value="reviewed">Reviewed</TabsTrigger>
                 <TabsTrigger value="dismissed">Dismissed</TabsTrigger>
               </TabsList>
+            ) : null}
+          </div>
 
-              <TabsContent value={statusTab} className="space-y-6">
-                {insightsQuery.isError ? (
-                  <ErrorState
-                    title="Could not load insights"
-                    message={getErrorMessage(insightsQuery.error)}
-                    onRetry={() => void insightsQuery.refetch()}
-                  />
-                ) : null}
+          {organizations.length > 0 ? (
+            <TabsContent value={statusTab} className="flex min-h-0 flex-1 flex-col space-y-4">
+              {insightsQuery.isError ? (
+                <ErrorState
+                  title="Could not load insights"
+                  message={getErrorMessage(insightsQuery.error)}
+                  onRetry={() => void insightsQuery.refetch()}
+                />
+              ) : null}
 
-                {reviewInsightMutation.isError ? (
-                  <ErrorState
-                    title="Could not mark insight as reviewed"
-                    message={getErrorMessage(reviewInsightMutation.error)}
-                  />
-                ) : null}
+              {reviewInsightMutation.isError ? (
+                <ErrorState
+                  title="Could not mark insight as reviewed"
+                  message={getErrorMessage(reviewInsightMutation.error)}
+                />
+              ) : null}
 
-                {dismissInsightMutation.isError ? (
-                  <ErrorState
-                    title="Could not dismiss insight"
-                    message={getErrorMessage(dismissInsightMutation.error)}
-                  />
-                ) : null}
+              {dismissInsightMutation.isError ? (
+                <ErrorState
+                  title="Could not dismiss insight"
+                  message={getErrorMessage(dismissInsightMutation.error)}
+                />
+              ) : null}
 
-                {reopenInsightMutation.isError ? (
-                  <ErrorState
-                    title="Could not reopen insight"
-                    message={getErrorMessage(reopenInsightMutation.error)}
-                  />
-                ) : null}
+              {reopenInsightMutation.isError ? (
+                <ErrorState
+                  title="Could not reopen insight"
+                  message={getErrorMessage(reopenInsightMutation.error)}
+                />
+              ) : null}
 
-                {insightsQuery.data && insightsQuery.data.data.length === 0 ? (
-                  <EmptyState
-                    title="No insights detected"
-                    description="No issue matched the current filters. This can mean the rule engine found no active problems, or there is not enough data in the selected range yet."
-                  />
-                ) : null}
+              {insightsQuery.data && insightsQuery.data.data.length === 0 ? (
+                <EmptyState
+                  title="No insights detected"
+                  description="No issue matched the current filters. This can mean the rule engine found no active problems, or there is not enough data in the selected range yet."
+                />
+              ) : null}
 
-                {insightsQuery.data && insightsQuery.data.skippedCount > 0 ? (
-                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                    {insightsQuery.data.skippedCount} insight{insightsQuery.data.skippedCount > 1 ? "s were" : " was"} hidden
-                    because the backend returned an unrecognized shape. The rest of this page is unaffected.
-                  </div>
-                ) : null}
+              {insightsQuery.data && insightsQuery.data.skippedCount > 0 ? (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                  {insightsQuery.data.skippedCount} insight{insightsQuery.data.skippedCount > 1 ? "s were" : " was"} hidden
+                  because the backend returned an unrecognized shape. The rest of this page is unaffected.
+                </div>
+              ) : null}
 
-                {insightsQuery.isLoading ? (
-                  <InsightsSkeleton />
-                ) : (
-                  <div className="max-h-[40rem] space-y-4 overflow-y-auto pr-1">
-                    {(insightsQuery.data?.data ?? []).map((insight) => (
-                      <InsightCard
-                        key={insight.insightKey}
-                        insight={insight}
-                        actionsDisabled={
-                          reviewInsightMutation.isPending || dismissInsightMutation.isPending || reopenInsightMutation.isPending
-                        }
-                        onReview={() =>
-                          reviewInsightMutation.mutate(
-                            { organizationId: insight.organizationId, insightKey: insight.insightKey },
-                            { onSuccess: () => notifySuccess("Insight marked reviewed") },
-                          )
-                        }
-                        onDismiss={() =>
-                          dismissInsightMutation.mutate(
-                            { organizationId: insight.organizationId, insightKey: insight.insightKey },
-                            { onSuccess: () => notifySuccess("Insight dismissed") },
-                          )
-                        }
-                        onReopen={() =>
-                          reopenInsightMutation.mutate(
-                            { organizationId: insight.organizationId, insightKey: insight.insightKey },
-                            { onSuccess: () => notifySuccess("Insight reopened") },
-                          )
-                        }
-                      />
-                    ))}
-                  </div>
-                )}
+              {insightsQuery.isLoading ? (
+                <InsightsSkeleton />
+              ) : (
+                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+                  {(insightsQuery.data?.data ?? []).map((insight) => (
+                    <InsightCard
+                      key={insight.insightKey}
+                      insight={insight}
+                      actionsDisabled={
+                        reviewInsightMutation.isPending || dismissInsightMutation.isPending || reopenInsightMutation.isPending
+                      }
+                      onReview={() =>
+                        reviewInsightMutation.mutate(
+                          { organizationId: insight.organizationId, insightKey: insight.insightKey },
+                          { onSuccess: () => notifySuccess("Insight marked reviewed") },
+                        )
+                      }
+                      onDismiss={() =>
+                        dismissInsightMutation.mutate(
+                          { organizationId: insight.organizationId, insightKey: insight.insightKey },
+                          { onSuccess: () => notifySuccess("Insight dismissed") },
+                        )
+                      }
+                      onReopen={() =>
+                        reopenInsightMutation.mutate(
+                          { organizationId: insight.organizationId, insightKey: insight.insightKey },
+                          { onSuccess: () => notifySuccess("Insight reopened") },
+                        )
+                      }
+                    />
+                  ))}
+                </div>
+              )}
 
-                {insightsQuery.data ? (
-                  <div className="flex items-center justify-center gap-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      aria-label="Previous page"
-                      disabled={search.page <= 1}
-                      onClick={() => updateSearch({ page: search.page - 1 })}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <p className="text-sm text-muted-foreground">
-                      Page {insightsQuery.data.pagination.page} / {Math.max(insightsQuery.data.pagination.totalPages, 1)}
-                    </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      aria-label="Next page"
-                      disabled={insightsQuery.data.pagination.page >= Math.max(insightsQuery.data.pagination.totalPages, 1)}
-                      onClick={() => updateSearch({ page: search.page + 1 })}
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : null}
-              </TabsContent>
-            </Tabs>
+              {insightsQuery.data && insightsQuery.data.data.length > 0 ? (
+                <div className="flex items-center justify-center gap-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    aria-label="Previous page"
+                    disabled={search.page <= 1}
+                    onClick={() => updateSearch({ page: search.page - 1 })}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <p className="text-sm text-muted-foreground">
+                    Page {insightsQuery.data.pagination.page} / {Math.max(insightsQuery.data.pagination.totalPages, 1)}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    aria-label="Next page"
+                    disabled={insightsQuery.data.pagination.page >= Math.max(insightsQuery.data.pagination.totalPages, 1)}
+                    onClick={() => updateSearch({ page: search.page + 1 })}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : null}
+            </TabsContent>
           ) : null}
-        </div>
+        </Tabs>
       </PageShell>
       <SuccessModal
         state={successModal}
