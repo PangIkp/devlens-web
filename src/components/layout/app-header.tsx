@@ -1,12 +1,11 @@
 import { useNavigate } from "@tanstack/react-router";
-import { useUiStore } from "@/store/ui-store";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { useLogoutMutation } from "@/features/auth/auth.query";
 import { useAuthStore } from "@/features/auth/auth.store";
 import { queryClient } from "@/app/query-client";
 
 export function AppHeader() {
-  const toggleSidebar = useUiStore((state) => state.toggleSidebar);
   const session = useAuthStore((state) => state.session);
   const navigate = useNavigate();
   const logoutMutation = useLogoutMutation();
@@ -24,9 +23,7 @@ export function AppHeader() {
             <p className="text-xs text-muted-foreground">{session.user.email}</p>
           </div>
         ) : null}
-        <Button variant="outline" size="sm" onClick={toggleSidebar}>
-          Toggle sidebar
-        </Button>
+        <ThemeToggle />
         <Button
           variant="outline"
           size="sm"
