@@ -8,7 +8,7 @@ import { PullRequestList } from "@/components/pull-requests/pull-request-list";
 import { EmptyState, ErrorState } from "@/components/shared/query-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useOrganizationsQuery } from "@/features/organizations/use-organizations-query";
@@ -150,13 +150,18 @@ function PullRequestsPage() {
               <Select
                 value={selectedOrganizationId ?? ""}
                 disabled={organizationsQuery.isLoading || organizations.length === 0}
-                onChange={(event) => updateSearch({ organizationId: event.target.value, repositoryId: undefined, page: 1 })}
+                onValueChange={(value) => updateSearch({ organizationId: value, repositoryId: undefined, page: 1 })}
               >
-                {organizations.map((organization) => (
-                  <option key={organization.id} value={organization.id}>
-                    {organization.name}
-                  </option>
-                ))}
+                <SelectTrigger aria-label="Organization">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {organizations.map((organization) => (
+                    <SelectItem key={organization.id} value={organization.id}>
+                      {organization.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </label>
             <label className="space-y-2">
@@ -164,32 +169,41 @@ function PullRequestsPage() {
               <Select
                 value={selectedRepositoryId ?? ""}
                 disabled={repositoriesQuery.isLoading || repositories.length === 0}
-                onChange={(event) => updateSearch({ repositoryId: event.target.value, page: 1 })}
+                onValueChange={(value) => updateSearch({ repositoryId: value, page: 1 })}
               >
-                {repositories.map((repository) => (
-                  <option key={repository.id} value={repository.id}>
-                    {repository.fullName}
-                  </option>
-                ))}
+                <SelectTrigger aria-label="Repository">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {repositories.map((repository) => (
+                    <SelectItem key={repository.id} value={repository.id}>
+                      {repository.fullName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </label>
             <label className="space-y-2">
               <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Sort</span>
               <Select
-                aria-label="Sort pull requests"
                 value={`${search.sortBy}:${search.sortOrder}`}
-                onChange={(event) => {
-                  const [sortBy, sortOrder] = event.target.value.split(":") as [
+                onValueChange={(value) => {
+                  const [sortBy, sortOrder] = value.split(":") as [
                     "createdAt" | "number",
                     "asc" | "desc",
                   ];
                   updateSearch({ sortBy, sortOrder, page: 1 });
                 }}
               >
-                <option value="createdAt:desc">Newest first</option>
-                <option value="createdAt:asc">Oldest first</option>
-                <option value="number:desc">PR number (high to low)</option>
-                <option value="number:asc">PR number (low to high)</option>
+                <SelectTrigger aria-label="Sort pull requests">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="createdAt:desc">Newest first</SelectItem>
+                  <SelectItem value="createdAt:asc">Oldest first</SelectItem>
+                  <SelectItem value="number:desc">PR number (high to low)</SelectItem>
+                  <SelectItem value="number:asc">PR number (low to high)</SelectItem>
+                </SelectContent>
               </Select>
             </label>
             <div className="flex items-end gap-3">
@@ -232,7 +246,7 @@ function PullRequestsPage() {
                 })
               }
             >
-              <TabsList>
+              <TabsList className="sticky top-0 z-10 bg-background/95 backdrop-blur">
                 <TabsTrigger value="all">All</TabsTrigger>
                 <TabsTrigger value="open">Open</TabsTrigger>
                 <TabsTrigger value="merged">Merged</TabsTrigger>

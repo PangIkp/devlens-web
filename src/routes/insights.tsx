@@ -8,7 +8,7 @@ import { InsightCard } from "@/components/insights/insight-card";
 import { EmptyState, ErrorState } from "@/components/shared/query-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   SuccessModal,
@@ -167,62 +167,82 @@ function InsightsPage() {
             <label className="space-y-2">
               <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Organization</span>
               <Select
-                aria-label="Insight organization"
                 value={selectedOrganizationId ?? ""}
                 disabled={organizationsQuery.isLoading || organizations.length === 0}
-                onChange={(event) => updateSearch({ organizationId: event.target.value, repositoryId: undefined, page: 1 })}
+                onValueChange={(value) => updateSearch({ organizationId: value, repositoryId: undefined, page: 1 })}
               >
-                {organizations.map((organization) => (
-                  <option key={organization.id} value={organization.id}>
-                    {organization.name}
-                  </option>
-                ))}
+                <SelectTrigger aria-label="Insight organization">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {organizations.map((organization) => (
+                    <SelectItem key={organization.id} value={organization.id}>
+                      {organization.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </label>
 
             <label className="space-y-2">
               <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Repository</span>
               <Select
-                aria-label="Insight repository"
-                value={search.repositoryId ?? ""}
+                value={search.repositoryId ?? "all"}
                 disabled={repositoriesQuery.isLoading || (repositoriesQuery.data?.data.length ?? 0) === 0}
-                onChange={(event) => updateSearch({ repositoryId: event.target.value || undefined, page: 1 })}
+                onValueChange={(value) => updateSearch({ repositoryId: value === "all" ? undefined : value, page: 1 })}
               >
-                <option value="">All repositories</option>
-                {(repositoriesQuery.data?.data ?? []).map((repository) => (
-                  <option key={repository.id} value={repository.id}>
-                    {repository.fullName}
-                  </option>
-                ))}
+                <SelectTrigger aria-label="Insight repository">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All repositories</SelectItem>
+                  {(repositoriesQuery.data?.data ?? []).map((repository) => (
+                    <SelectItem key={repository.id} value={repository.id}>
+                      {repository.fullName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </label>
 
             <label className="space-y-2">
               <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Type</span>
-              <Select aria-label="Insight type" value={search.type ?? ""} onChange={(event) => updateSearch({ type: event.target.value || undefined, page: 1 })}>
-                <option value="">All types</option>
-                <option value="slow_review_detection">Slow review</option>
-                <option value="large_pr_detection">Large PR</option>
-                <option value="hotspot_detection">Hotspot</option>
-                <option value="review_concentration">Review concentration</option>
-                <option value="deployment_failure_trend">Deployment failure trend</option>
-                <option value="bottleneck_detection">Bottleneck</option>
+              <Select
+                value={search.type ?? "all"}
+                onValueChange={(value) => updateSearch({ type: value === "all" ? undefined : (value as NonNullable<typeof search.type>), page: 1 })}
+              >
+                <SelectTrigger aria-label="Insight type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All types</SelectItem>
+                  <SelectItem value="slow_review_detection">Slow review</SelectItem>
+                  <SelectItem value="large_pr_detection">Large PR</SelectItem>
+                  <SelectItem value="hotspot_detection">Hotspot</SelectItem>
+                  <SelectItem value="review_concentration">Review concentration</SelectItem>
+                  <SelectItem value="deployment_failure_trend">Deployment failure trend</SelectItem>
+                  <SelectItem value="bottleneck_detection">Bottleneck</SelectItem>
+                </SelectContent>
               </Select>
             </label>
 
             <label className="space-y-2">
               <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Date range</span>
               <Select
-                aria-label="Insight date range"
                 value={String(selectedPreset)}
-                onChange={(event) => {
-                  const range = getDashboardDateRangeForPreset(Number(event.target.value) as 7 | 30 | 90);
+                onValueChange={(value) => {
+                  const range = getDashboardDateRangeForPreset(Number(value) as 7 | 30 | 90);
                   updateSearch({ from: range.from, to: range.to, page: 1 });
                 }}
               >
-                <option value="7">Last 7 Days</option>
-                <option value="30">Last 30 Days</option>
-                <option value="90">Last 90 Days</option>
+                <SelectTrigger aria-label="Insight date range">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7">Last 7 Days</SelectItem>
+                  <SelectItem value="30">Last 30 Days</SelectItem>
+                  <SelectItem value="90">Last 90 Days</SelectItem>
+                </SelectContent>
               </Select>
             </label>
           </div>
@@ -256,7 +276,7 @@ function InsightsPage() {
                 })
               }
             >
-              <TabsList>
+              <TabsList className="sticky top-0 z-10 bg-background/95 backdrop-blur">
                 <TabsTrigger value="all">All</TabsTrigger>
                 <TabsTrigger value="open">Open</TabsTrigger>
                 <TabsTrigger value="reviewed">Reviewed</TabsTrigger>

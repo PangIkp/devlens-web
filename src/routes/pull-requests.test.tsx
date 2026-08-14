@@ -184,7 +184,8 @@ describe("pull requests routes", () => {
 
     expect(await screen.findByText("Improve sync retries")).toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText("Sort pull requests"), "number:asc");
+    await user.click(screen.getByLabelText("Sort pull requests"));
+    await user.click(await screen.findByRole("option", { name: "PR number (low to high)" }));
 
     const requestedUrls = fetchStub.mock.calls.map(([input]) => String(input));
 
