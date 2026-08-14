@@ -9,5 +9,5 @@ const severityTone: Record<Insight["severity"], "neutral" | "info" | "warning" |
 };
 
 export function InsightSeverity({ severity }: { severity: Insight["severity"] }) {
-  return <StatusPill label={severity.replace("_", " ")} tone={severityTone[severity]} />;
+  return <StatusPill label={severity} tone={severityTone[severity]} />;
 }

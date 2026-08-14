@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/shared/status-pill";
@@ -5,10 +7,6 @@ import { InsightEvidence } from "@/components/insights/insight-evidence";
 import { InsightSeverity } from "@/components/insights/insight-severity";
 import type { Insight } from "@/features/insights/insights.schemas";
 import { formatDateTime } from "@/components/repositories/repository-utils";
-
-function formatInsightType(type: Insight["insightType"]) {
-  return type.replaceAll("_", " ");
-}
 
 function getStatusTone(status: Insight["status"]) {
   if (status === "reviewed") {
@@ -35,12 +33,15 @@ export function InsightCard({
   onReopen?: () => void;
   actionsDisabled?: boolean;
 }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const hasEvidence = Boolean(insight.evidence && Object.keys(insight.evidence).length > 0);
+
   return (
     <Card className="space-y-5">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <StatusPill label={formatInsightType(insight.insightType)} />
+            <StatusPill label={insight.insightType} />
             <InsightSeverity severity={insight.severity} />
             <StatusPill label={insight.status} tone={getStatusTone(insight.status)} />
           </div>
@@ -55,50 +56,53 @@ export function InsightCard({
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-xl border border-border/70 bg-background/70 p-4">
-          <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">What happened</p>
-          <p className="mt-2 text-sm">{insight.title}</p>
+      {hasEvidence ? (
+        <div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="-ml-3 text-muted-foreground"
+            onClick={() => setDetailsOpen((open) => !open)}
+            aria-expanded={detailsOpen}
+            aria-controls={`${insight.insightKey}-evidence`}
+            aria-label={`${detailsOpen ? "Hide" : "View"} evidence: ${insight.title}`}
+          >
+            {detailsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            {detailsOpen ? "Hide evidence" : "View evidence"}
+          </Button>
+          {detailsOpen ? (
+            <div id={`${insight.insightKey}-evidence`} className="mt-3">
+              <InsightEvidence evidence={insight.evidence} />
+            </div>
+          ) : null}
         </div>
-        <div className="rounded-xl border border-border/70 bg-background/70 p-4">
-          <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Where</p>
-          <p className="mt-2 text-sm">{insight.repositoryName ?? "Across the organization"}</p>
-        </div>
-        <div className="rounded-xl border border-border/70 bg-background/70 p-4">
-          <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Current status</p>
-          <p className="mt-2 text-sm">{insight.status}</p>
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        <p className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Evidence</p>
-        <InsightEvidence evidence={insight.evidence} />
-      </div>
+      ) : null}
 
       <div className="flex flex-wrap gap-3">
         {insight.status === "open" ? (
-          <>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={actionsDisabled}
-              onClick={onReview}
-              aria-label={`Mark reviewed: ${insight.title}`}
-            >
-              Mark reviewed
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={actionsDisabled}
-              onClick={onDismiss}
-              aria-label={`Dismiss: ${insight.title}`}
-            >
-              Dismiss
-            </Button>
-          </>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={actionsDisabled}
+            onClick={onReview}
+            aria-label={`Mark reviewed: ${insight.title}`}
+          >
+            Mark reviewed
+          </Button>
         ) : null}
-        {insight.status === "dismissed" ? (
+        {insight.status === "open" || insight.status === "reviewed" ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={actionsDisabled}
+            onClick={onDismiss}
+            aria-label={`Dismiss: ${insight.title}`}
+          >
+            Dismiss
+          </Button>
+        ) : null}
+        {insight.status === "dismissed" || insight.status === "reviewed" ? (
           <Button
             type="button"
             variant="outline"

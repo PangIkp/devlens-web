@@ -115,10 +115,14 @@ describe("insights route", () => {
 
     expect(await screen.findByRole("heading", { name: "Review Wait Time increased" })).toBeInTheDocument();
     expect(screen.getAllByText("devlens-labs/devlens-api").length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole("button", { name: "View evidence: Review Wait Time increased" }));
     expect(screen.getByText("reviewWaitMinutes")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Dismiss: Review Wait Time increased" }));
-    await user.selectOptions(screen.getByLabelText("Insight status"), "dismissed");
+    expect(await screen.findByText("Insight dismissed")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    await user.click(await screen.findByRole("tab", { name: "Dismissed" }));
 
     expect(await screen.findByText("No insights detected")).toBeInTheDocument();
     expect(fetchStub.mock.calls.some(([input]) => String(input).includes("/dismiss"))).toBe(true);
@@ -158,9 +162,11 @@ describe("insights route", () => {
       }),
     );
 
+    const user = userEvent.setup();
     renderApp("/insights");
 
     expect(await screen.findByRole("heading", { name: "Review Wait Time increased" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "View evidence: Review Wait Time increased" }));
     expect(screen.getByText("waitHoursThreshold")).toBeInTheDocument();
     expect(screen.getByText("24")).toBeInTheDocument();
     expect(screen.getByText(/1 insight was hidden/)).toBeInTheDocument();
