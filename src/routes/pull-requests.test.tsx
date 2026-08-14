@@ -164,7 +164,7 @@ describe("pull requests routes", () => {
     expect(await screen.findByText("Timeline")).toBeInTheDocument();
     expect(screen.getByText("Pull request created")).toBeInTheDocument();
     expect(screen.getByText("Review submitted")).toBeInTheDocument();
-    expect(screen.getByText("high risk")).toBeInTheDocument();
+    expect(screen.getByText("High risk")).toBeInTheDocument();
     expect(screen.getByText("Pull request touches more than 500 lines")).toBeInTheDocument();
     expect(screen.getByText("No tests were changed")).toBeInTheDocument();
     expect(screen.getByText("Cycle time")).toBeInTheDocument();
