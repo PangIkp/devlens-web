@@ -6,11 +6,11 @@ import { AppSidebar } from "@/components/layout/app-sidebar";
 export function AppLayout({ children }: PropsWithChildren) {
   return (
     <RequireAuth>
-      <div className="flex min-h-screen">
+      <div className="flex h-screen overflow-hidden">
         <AppSidebar />
-        <div className="flex min-h-screen flex-1 flex-col">
+        <div className="flex h-screen flex-1 flex-col overflow-hidden">
           <AppHeader />
-          <main className="flex-1 p-6">{children}</main>
+          <main className="flex-1 overflow-y-auto p-6">{children}</main>
         </div>
       </div>
     </RequireAuth>

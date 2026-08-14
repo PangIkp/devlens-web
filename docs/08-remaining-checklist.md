@@ -156,7 +156,7 @@
 
 ---
 
-## 2. Future Scope According To Docs 
+## 2. Future Scope According To Docs
 
 รายการนี้ยังไม่ควรนับเป็น missing implementation ของ milestone ปัจจุบัน ถ้ายังไม่อยู่ใน `openapi.yaml`
 

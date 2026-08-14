@@ -11,7 +11,7 @@ export function AppHeader() {
   const logoutMutation = useLogoutMutation();
 
   return (
-    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 bg-card/70 px-4 py-4 backdrop-blur sm:px-6">
+    <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border/80 bg-card/70 px-4 py-4 backdrop-blur sm:px-6">
       <div className="min-w-0">
         <p className="hidden text-xs uppercase tracking-[0.3em] text-muted-foreground sm:block">Engineering Intelligence Platform</p>
         <h2 className="text-lg font-semibold">DevLens Web</h2>

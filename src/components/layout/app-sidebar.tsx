@@ -22,7 +22,7 @@ export function AppSidebar() {
         // button (which floats half outside the sidebar's edge) always
         // paints above the header, instead of the header's `backdrop-blur`
         // stacking context winning the overlap.
-        "relative z-20 border-r border-border/80 bg-card/80 px-4 py-6 backdrop-blur transition-all",
+        "relative z-20 shrink-0 overflow-y-auto border-r border-border/80 bg-card/80 px-4 py-6 backdrop-blur transition-all",
         // Below `md`, stay icon-width regardless of the toggle state so the
         // sidebar never eats most of a phone-sized viewport.
         sidebarOpen ? "w-20 md:w-72" : "w-20",
