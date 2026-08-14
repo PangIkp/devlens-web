@@ -1,19 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import type { PullRequestListItem } from "@/features/pull-requests/pull-requests.schemas";
 import { StatusPill } from "@/components/shared/status-pill";
+import { getPullRequestTone } from "@/components/pull-requests/pull-request-utils";
 import { formatDateTime } from "@/components/repositories/repository-utils";
-
-function getPullRequestTone(state: string) {
-  if (state === "merged") {
-    return "success" as const;
-  }
-
-  if (state === "closed") {
-    return "danger" as const;
-  }
-
-  return "info" as const;
-}
 
 export function PullRequestList({ pullRequests }: { pullRequests: PullRequestListItem[] }) {
   return (

@@ -94,15 +94,26 @@ function PullRequestsPage() {
   );
 
   useEffect(() => {
-    if (!search.organizationId && organizations[0]?.id) {
-      void navigate({ search: (previous) => ({ ...previous, organizationId: organizations[0].id }), replace: true });
+    if (organizations.length === 0) {
+      return;
+    }
+    const organizationStillExists = organizations.some((organization) => organization.id === search.organizationId);
+    if (!organizationStillExists) {
+      void navigate({
+        search: (previous) => ({ ...previous, organizationId: organizations[0].id, repositoryId: undefined, page: 1 }),
+        replace: true,
+      });
     }
   }, [navigate, organizations, search.organizationId]);
 
   useEffect(() => {
-    if (selectedOrganizationId && !search.repositoryId && repositories[0]?.id) {
+    if (!selectedOrganizationId || repositories.length === 0) {
+      return;
+    }
+    const repositoryStillExists = repositories.some((repository) => repository.id === search.repositoryId);
+    if (!repositoryStillExists) {
       void navigate({
-        search: (previous) => ({ ...previous, organizationId: selectedOrganizationId, repositoryId: repositories[0].id }),
+        search: (previous) => ({ ...previous, organizationId: selectedOrganizationId, repositoryId: repositories[0].id, page: 1 }),
         replace: true,
       });
     }

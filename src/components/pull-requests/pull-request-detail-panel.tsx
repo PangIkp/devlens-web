@@ -1,34 +1,11 @@
-import type { PullRequestDetail, PullRequestRiskIndicator } from "@/features/pull-requests/pull-requests.schemas";
+import type { PullRequestDetail } from "@/features/pull-requests/pull-requests.schemas";
 import { Card } from "@/components/ui/card";
 import { StatusPill } from "@/components/shared/status-pill";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PullRequestTimeline } from "@/components/pull-requests/pull-request-timeline";
+import { getPullRequestTone, getReviewStateTone, getRiskTone } from "@/components/pull-requests/pull-request-utils";
 import { formatDateTime } from "@/components/repositories/repository-utils";
 import { formatDurationMinutes } from "@/lib/formatters";
-
-function getPullRequestTone(state: string) {
-  if (state === "merged") {
-    return "success" as const;
-  }
-
-  if (state === "closed") {
-    return "danger" as const;
-  }
-
-  return "info" as const;
-}
-
-function getRiskTone(level: PullRequestRiskIndicator["level"]) {
-  if (level === "high") {
-    return "danger" as const;
-  }
-
-  if (level === "medium") {
-    return "warning" as const;
-  }
-
-  return "success" as const;
-}
 
 export function PullRequestDetailPanel({ pullRequest }: { pullRequest: PullRequestDetail }) {
   return (
@@ -97,10 +74,12 @@ export function PullRequestDetailPanel({ pullRequest }: { pullRequest: PullReque
             ) : (
               <div className="divide-y divide-border/60 rounded-xl border border-border/70">
                 {pullRequest.reviews.map((review) => (
-                  <div key={review.id} className="p-4 text-sm">
-                    <p className="font-medium">{review.reviewer}</p>
-                    <p className="mt-1 text-muted-foreground">{review.state}</p>
-                    <p className="mt-1 text-muted-foreground">Submitted {formatDateTime(review.reviewSubmittedAt)}</p>
+                  <div key={review.id} className="space-y-1 p-4 text-sm">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium">{review.reviewer}</p>
+                      <StatusPill label={review.state.toLowerCase()} tone={getReviewStateTone(review.state)} />
+                    </div>
+                    <p className="text-muted-foreground">Submitted {formatDateTime(review.reviewSubmittedAt)}</p>
                   </div>
                 ))}
               </div>

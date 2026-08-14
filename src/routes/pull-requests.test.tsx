@@ -216,4 +216,14 @@ describe("pull requests routes", () => {
     expect(await screen.findByText("Fix flaky worker test")).toBeInTheDocument();
     expect(screen.getByText("Page 2 / 2")).toBeInTheDocument();
   });
+
+  it("falls back to a real organization when the URL points at one that no longer exists", async () => {
+    vi.stubGlobal("fetch", createPullRequestsFetchStub());
+
+    const { router } = renderApp("/pull-requests?organizationId=99999999-9999-4999-8999-999999999999");
+
+    expect(await screen.findByText("Improve sync retries")).toBeInTheDocument();
+    expect(router.state.location.search.organizationId).toBe(organizationId);
+    expect(router.state.location.search.repositoryId).toBe(repositoryId);
+  });
 });
