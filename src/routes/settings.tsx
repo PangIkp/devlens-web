@@ -1416,7 +1416,7 @@ function SettingsPage() {
                       </div>
 
                       {syncJobsQuery.data ? (
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-center gap-4">
                           <Button
                             type="button"
                             variant="outline"

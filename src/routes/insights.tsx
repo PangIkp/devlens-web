@@ -310,7 +310,7 @@ function InsightsPage() {
                 {insightsQuery.isLoading ? (
                   <InsightsSkeleton />
                 ) : (
-                  <div className="space-y-4">
+                  <div className="max-h-[40rem] space-y-4 overflow-y-auto pr-1">
                     {(insightsQuery.data?.data ?? []).map((insight) => (
                       <InsightCard
                         key={insight.insightKey}
@@ -342,7 +342,7 @@ function InsightsPage() {
                 )}
 
                 {insightsQuery.data ? (
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-center gap-4">
                     <Button
                       type="button"
                       variant="outline"
