@@ -22,11 +22,7 @@ function PullRequestDetailPage() {
 
   return (
     <AppLayout>
-      <PageShell
-        eyebrow="Pull request detail"
-        title="Pull request detail"
-        description="Inspect reviews, changed files, and the core metadata returned by the backend for a selected pull request."
-      >
+      <PageShell unwrapped>
         <div className="space-y-6">
           <Button asChild variant="outline" size="sm">
             <Link to="/pull-requests">Back to pull requests</Link>

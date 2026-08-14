@@ -147,8 +147,10 @@ describe("pull requests routes", () => {
     expect(await screen.findByText("Improve sync retries")).toBeInTheDocument();
     await user.click(screen.getByRole("link", { name: "Improve sync retries" }));
 
-    expect(await screen.findByText("Changed files")).toBeInTheDocument();
+    await user.click(await screen.findByRole("tab", { name: "Changed files (1)" }));
     expect(screen.getByText("internal/sync/retry.go")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "Reviews (1)" }));
     expect(screen.getByText("techlead")).toBeInTheDocument();
   });
 

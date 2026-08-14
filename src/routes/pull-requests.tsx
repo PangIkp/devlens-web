@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { createRoute } from "@tanstack/react-router";
+import { createRoute, Link } from "@tanstack/react-router";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { z } from "zod";
 import { AppLayout } from "@/components/layout/app-layout";
 import { PageShell } from "@/components/layout/page-shell";
@@ -8,6 +9,8 @@ import { EmptyState, ErrorState } from "@/components/shared/query-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useOrganizationsQuery } from "@/features/organizations/use-organizations-query";
 import { usePullRequestsQuery } from "@/features/pull-requests/pull-requests.query";
 import { useRepositoriesListQuery } from "@/features/repositories/repositories.query";
@@ -40,6 +43,23 @@ export const pullRequestsRoute = createRoute({
   component: PullRequestsPage,
 });
 
+function PullRequestsSkeleton() {
+  return (
+    <div className="space-y-0 divide-y divide-border/60 rounded-xl border border-border/70" aria-label="Pull requests loading">
+      {[0, 1, 2, 3].map((row) => (
+        <div key={row} className="space-y-3 p-5">
+          <div className="flex gap-2">
+            <Skeleton className="h-5 w-16 rounded-full" />
+            <Skeleton className="h-5 w-10 rounded-full" />
+          </div>
+          <Skeleton className="h-5 w-2/3" />
+          <Skeleton className="h-4 w-1/3" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function PullRequestsPage() {
   const navigate = pullRequestsRoute.useNavigate();
   const search = pullRequestsRoute.useSearch();
@@ -59,6 +79,7 @@ function PullRequestsPage() {
   );
   const repositories = useMemo(() => repositoriesQuery.data?.data ?? [], [repositoriesQuery.data?.data]);
   const selectedRepositoryId = search.repositoryId ?? repositories[0]?.id;
+  const statusTab = search.status ?? "all";
   const pullRequestsQuery = usePullRequestsQuery(
     {
       repositoryId: selectedRepositoryId,
@@ -102,14 +123,12 @@ function PullRequestsPage() {
 
   return (
     <AppLayout>
-      <PageShell
-        eyebrow="Pull requests"
-        title="Pull request detail flow"
-        description="Review repository pull requests, filter the queue, and open the backend-backed detail page for reviews and changed files."
-      >
+      <PageShell unwrapped>
         <div className="space-y-6">
+          <p className="text-sm font-medium uppercase tracking-[0.35em] text-accent">Pull Requests</p>
+
           <form
-            className="grid gap-3 lg:grid-cols-[1.1fr_1.1fr_0.9fr_0.9fr_auto]"
+            className="grid gap-3 lg:grid-cols-[1.1fr_1.1fr_0.9fr_auto]"
             onSubmit={(event) => {
               event.preventDefault();
               updateSearch({ search: searchInput || undefined, page: 1 });
@@ -144,15 +163,6 @@ function PullRequestsPage() {
               </Select>
             </label>
             <label className="space-y-2">
-              <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Status</span>
-              <Select value={search.status ?? ""} onChange={(event) => updateSearch({ status: event.target.value || undefined, page: 1 })}>
-                <option value="">All statuses</option>
-                <option value="open">Open</option>
-                <option value="merged">Merged</option>
-                <option value="closed">Closed</option>
-              </Select>
-            </label>
-            <label className="space-y-2">
               <span className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Sort</span>
               <Select
                 aria-label="Sort pull requests"
@@ -171,7 +181,7 @@ function PullRequestsPage() {
                 <option value="number:asc">PR number (low to high)</option>
               </Select>
             </label>
-            <div className="flex gap-3">
+            <div className="flex items-end gap-3">
               <Input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search PR title" aria-label="Pull request search" />
               <Button type="submit">Apply</Button>
             </div>
@@ -181,6 +191,11 @@ function PullRequestsPage() {
             <EmptyState
               title="No organizations available"
               description="Your current account does not have access to any organization yet. Create one from Settings before browsing pull requests."
+              action={
+                <Button asChild variant="outline">
+                  <Link to="/settings">Open Settings</Link>
+                </Button>
+              }
             />
           ) : null}
 
@@ -188,44 +203,82 @@ function PullRequestsPage() {
             <EmptyState
               title="No repositories available"
               description="This organization does not have a managed repository yet. Connect one from Settings before opening pull requests."
+              action={
+                <Button asChild variant="outline">
+                  <Link to="/settings">Open Settings</Link>
+                </Button>
+              }
             />
           ) : null}
 
-          {pullRequestsQuery.isError ? (
-            <ErrorState
-              title="Could not load pull requests"
-              message={getErrorMessage(pullRequestsQuery.error)}
-              onRetry={() => void pullRequestsQuery.refetch()}
-            />
-          ) : null}
+          {selectedRepositoryId ? (
+            <Tabs
+              value={statusTab}
+              onValueChange={(value) =>
+                updateSearch({
+                  status: value === "all" ? undefined : (value as NonNullable<typeof search.status>),
+                  page: 1,
+                })
+              }
+            >
+              <TabsList>
+                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="open">Open</TabsTrigger>
+                <TabsTrigger value="merged">Merged</TabsTrigger>
+                <TabsTrigger value="closed">Closed</TabsTrigger>
+              </TabsList>
 
-          {pullRequestsQuery.data && pullRequestsQuery.data.data.length === 0 ? (
-            <EmptyState
-              title="No pull requests found"
-              description="No pull request matched the current repository and filters."
-            />
-          ) : null}
+              <TabsContent value={statusTab} className="space-y-6">
+                {pullRequestsQuery.isError ? (
+                  <ErrorState
+                    title="Could not load pull requests"
+                    message={getErrorMessage(pullRequestsQuery.error)}
+                    onRetry={() => void pullRequestsQuery.refetch()}
+                  />
+                ) : null}
 
-          {pullRequestsQuery.isLoading ? <p className="text-sm text-muted-foreground">Loading pull requests...</p> : null}
-          {pullRequestsQuery.data && pullRequestsQuery.data.data.length > 0 ? <PullRequestList pullRequests={pullRequestsQuery.data.data} /> : null}
+                {pullRequestsQuery.data && pullRequestsQuery.data.data.length === 0 ? (
+                  <EmptyState
+                    title="No pull requests found"
+                    description="No pull request matched the current repository and filters."
+                  />
+                ) : null}
 
-          {pullRequestsQuery.data ? (
-            <div className="flex items-center justify-between">
-              <Button type="button" variant="outline" disabled={search.page <= 1} onClick={() => updateSearch({ page: search.page - 1 })}>
-                Previous page
-              </Button>
-              <p className="text-sm text-muted-foreground">
-                Page {pullRequestsQuery.data.pagination.page} / {Math.max(pullRequestsQuery.data.pagination.totalPages, 1)}
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={pullRequestsQuery.data.pagination.page >= Math.max(pullRequestsQuery.data.pagination.totalPages, 1)}
-                onClick={() => updateSearch({ page: search.page + 1 })}
-              >
-                Next page
-              </Button>
-            </div>
+                {pullRequestsQuery.isLoading ? (
+                  <PullRequestsSkeleton />
+                ) : pullRequestsQuery.data && pullRequestsQuery.data.data.length > 0 ? (
+                  <PullRequestList pullRequests={pullRequestsQuery.data.data} />
+                ) : null}
+
+                {pullRequestsQuery.data ? (
+                  <div className="flex items-center justify-between">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      aria-label="Previous page"
+                      disabled={search.page <= 1}
+                      onClick={() => updateSearch({ page: search.page - 1 })}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <p className="text-sm text-muted-foreground">
+                      Page {pullRequestsQuery.data.pagination.page} / {Math.max(pullRequestsQuery.data.pagination.totalPages, 1)}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      aria-label="Next page"
+                      disabled={pullRequestsQuery.data.pagination.page >= Math.max(pullRequestsQuery.data.pagination.totalPages, 1)}
+                      onClick={() => updateSearch({ page: search.page + 1 })}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : null}
+              </TabsContent>
+            </Tabs>
           ) : null}
         </div>
       </PageShell>

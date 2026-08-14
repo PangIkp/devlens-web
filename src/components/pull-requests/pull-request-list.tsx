@@ -17,9 +17,9 @@ function getPullRequestTone(state: string) {
 
 export function PullRequestList({ pullRequests }: { pullRequests: PullRequestListItem[] }) {
   return (
-    <div className="space-y-4">
+    <div className="divide-y divide-border/60 rounded-xl border border-border/70">
       {pullRequests.map((pullRequest) => (
-        <div key={pullRequest.id} className="rounded-2xl border border-border/80 bg-card/80 p-5">
+        <div key={pullRequest.id} className="p-5 transition-colors hover:bg-muted/60">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
