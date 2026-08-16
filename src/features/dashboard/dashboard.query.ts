@@ -5,7 +5,10 @@ import {
   getDeploymentMetrics,
   getHotspotMetrics,
   getPullRequestMetrics,
+  getRepositoryMetrics,
   getReviewMetrics,
+  getReviewQueue,
+  getWorkloadDistribution,
 } from "@/features/dashboard/dashboard.api";
 import { inferMetricsInterval } from "@/features/dashboard/dashboard.utils";
 
@@ -24,6 +27,12 @@ export const dashboardKeys = {
     [...dashboardKeys.all, "deployments", repositoryId, range, interval] as const,
   hotspots: (repositoryId: string, range: DashboardRange, page: number, pageSize: number) =>
     [...dashboardKeys.all, "hotspots", repositoryId, range, page, pageSize] as const,
+  reviewQueue: (repositoryId: string, range: DashboardRange, page: number, pageSize: number) =>
+    [...dashboardKeys.all, "reviewQueue", repositoryId, range, page, pageSize] as const,
+  workloadDistribution: (repositoryId: string, range: DashboardRange) =>
+    [...dashboardKeys.all, "workloadDistribution", repositoryId, range] as const,
+  repositoryMetrics: (repositoryId: string, range: DashboardRange, interval: string) =>
+    [...dashboardKeys.all, "repositoryMetrics", repositoryId, range, interval] as const,
 };
 
 export function useDashboardSummaryQuery(params: RepositoryScopedRange, enabled = true) {
@@ -76,5 +85,38 @@ export function useHotspotMetricsQuery(
     queryFn: () => getHotspotMetrics(params),
     enabled,
     placeholderData: (previousData) => previousData,
+  });
+}
+
+export function useReviewQueueQuery(
+  params: RepositoryScopedRange & {
+    page: number;
+    pageSize: number;
+  },
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: dashboardKeys.reviewQueue(params.repositoryId, params, params.page, params.pageSize),
+    queryFn: () => getReviewQueue(params),
+    enabled,
+    placeholderData: (previousData) => previousData,
+  });
+}
+
+export function useWorkloadDistributionQuery(params: RepositoryScopedRange, enabled = true) {
+  return useQuery({
+    queryKey: dashboardKeys.workloadDistribution(params.repositoryId, params),
+    queryFn: () => getWorkloadDistribution(params),
+    enabled,
+  });
+}
+
+export function useRepositoryMetricsQuery(params: RepositoryScopedRange, enabled = true) {
+  const interval = inferMetricsInterval(params.from, params.to);
+
+  return useQuery({
+    queryKey: dashboardKeys.repositoryMetrics(params.repositoryId, params, interval),
+    queryFn: () => getRepositoryMetrics({ ...params, interval }),
+    enabled,
   });
 }

@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderApp } from "@/test/render-app";
-import { getDashboardDateRangeForPreset } from "@/features/dashboard/dashboard.utils";
+import { getDashboardDateRangeForPreset, getPreviousDateRange } from "@/features/dashboard/dashboard.utils";
 
 const organizationId = "org-devlens";
 const repositoryId = "repo-devlens-api";
@@ -22,6 +22,10 @@ function createDashboardFetchStub(options?: {
   deploymentData?: unknown;
   hotspotData?: unknown[];
   hotspotMeta?: unknown;
+  repositoryLastSyncedAt?: string | null;
+  reviewQueueData?: unknown[];
+  reviewQueueMeta?: unknown;
+  workloadDistributionData?: unknown;
 }) {
   return vi.fn().mockImplementation((input: string | URL) => {
     const url = new URL(String(input));
@@ -61,7 +65,7 @@ function createDashboardFetchStub(options?: {
               defaultBranch: "main",
               isActive: true,
               archivedAt: null,
-              lastSyncedAt: "2026-08-12T00:00:00Z",
+              lastSyncedAt: options?.repositoryLastSyncedAt ?? "2026-08-12T00:00:00Z",
               createdAt: "2026-08-10T10:00:00Z",
               updatedAt: "2026-08-12T00:00:00Z",
             },
@@ -169,12 +173,58 @@ function createDashboardFetchStub(options?: {
                 commitCount: 8,
               },
             ],
-          pagination:
+          meta:
             options?.hotspotMeta ?? {
               page: Number(url.searchParams.get("page") ?? "1"),
               pageSize: 10,
               totalItems: 11,
               totalPages: 2,
+            },
+        }),
+      );
+    }
+
+    if (url.pathname === `/api/v1/repositories/${repositoryId}/dashboard/review-queue` || url.pathname === `/api/v1/repositories/${repositoryIdTwo}/dashboard/review-queue`) {
+      return Promise.resolve(
+        jsonResponse(200, {
+          data:
+            options?.reviewQueueData ?? [
+              {
+                pullRequestId: "pr-review-queue-1",
+                number: 42,
+                title: "Add retry handling to sync worker",
+                author: "octocat",
+                reviewRequestedAt: "2026-08-11T09:00:00Z",
+                waitingMinutes: 90,
+              },
+            ],
+          meta:
+            options?.reviewQueueMeta ?? {
+              page: Number(url.searchParams.get("page") ?? "1"),
+              pageSize: 10,
+              totalItems: 1,
+              totalPages: 1,
+            },
+        }),
+      );
+    }
+
+    if (url.pathname === `/api/v1/repositories/${repositoryId}/metrics/workload-distribution` || url.pathname === `/api/v1/repositories/${repositoryIdTwo}/metrics/workload-distribution`) {
+      return Promise.resolve(
+        jsonResponse(200, {
+          data:
+            options?.workloadDistributionData ?? {
+              summary: {
+                repositoryId: url.pathname.includes(repositoryIdTwo) ? repositoryIdTwo : repositoryId,
+                from: url.searchParams.get("from"),
+                to: url.searchParams.get("to"),
+                totalPullRequests: 10,
+                totalReviews: 14,
+                topContributorShare: 0.6,
+                topReviewerShare: 0.5,
+              },
+              contributors: [{ author: "octocat", pullRequestCount: 6, share: 0.6 }],
+              reviewers: [{ reviewer: "hubot", reviewCount: 7, reviewedPullRequestCount: 6, share: 0.5 }],
             },
         }),
       );
@@ -190,7 +240,6 @@ describe("dashboard route", () => {
 
     renderApp("/dashboard");
 
-    expect(await screen.findByText("Engineering workflow dashboard")).toBeInTheDocument();
     expect((await screen.findAllByText("2h")).length).toBeGreaterThan(0);
     expect(screen.getByText("80%")).toBeInTheDocument();
     expect(screen.getByText("internal/metrics/calculator.go")).toBeInTheDocument();
@@ -267,7 +316,33 @@ describe("dashboard route", () => {
 
         if (url.pathname.includes("/metrics/hotspots")) {
           return Promise.resolve(
-            jsonResponse(200, { data: [], pagination: { page: 1, pageSize: 10, totalItems: 0, totalPages: 0 } }),
+            jsonResponse(200, { data: [], meta: { page: 1, pageSize: 10, totalItems: 0, totalPages: 0 } }),
+          );
+        }
+
+        if (url.pathname.includes("/dashboard/review-queue")) {
+          return Promise.resolve(
+            jsonResponse(200, { data: [], meta: { page: 1, pageSize: 10, totalItems: 0, totalPages: 0 } }),
+          );
+        }
+
+        if (url.pathname.includes("/metrics/workload-distribution")) {
+          return Promise.resolve(
+            jsonResponse(200, {
+              data: {
+                summary: {
+                  repositoryId,
+                  from: "2026-08-01",
+                  to: "2026-08-12",
+                  totalPullRequests: 0,
+                  totalReviews: 0,
+                  topContributorShare: 0,
+                  topReviewerShare: 0,
+                },
+                contributors: [],
+                reviewers: [],
+              },
+            }),
           );
         }
 
@@ -304,6 +379,16 @@ describe("dashboard route", () => {
     expect(await screen.findByText("Could not load dashboard summary")).toBeInTheDocument();
   });
 
+  it("shows an unsynced repository state before querying dashboard metrics", async () => {
+    const fetchStub = createDashboardFetchStub({ repositoryLastSyncedAt: null });
+    vi.stubGlobal("fetch", fetchStub);
+
+    renderApp(`/dashboard?organizationId=${organizationId}&repositoryId=${repositoryId}`);
+
+    expect(await screen.findByText("Repository data is not ready yet")).toBeInTheDocument();
+    expect(fetchStub.mock.calls.some(([input]) => String(input).includes("/dashboard/summary"))).toBe(false);
+  });
+
   it("keeps other sections visible when one API fails", async () => {
     vi.stubGlobal("fetch", createDashboardFetchStub({ reviewStatus: 500 }));
 
@@ -335,6 +420,74 @@ describe("dashboard route", () => {
     expect(await screen.findByText("No hotspot files available")).toBeInTheDocument();
   });
 
+  it("renders review queue and workload distribution sections", async () => {
+    vi.stubGlobal("fetch", createDashboardFetchStub());
+
+    renderApp("/dashboard");
+
+    expect(await screen.findByText(/Add retry handling to sync worker/)).toBeInTheDocument();
+    expect(screen.getByText("octocat", { selector: "span" })).toBeInTheDocument();
+    expect(screen.getByText("hubot")).toBeInTheDocument();
+  });
+
+  it("renders empty states for review queue and workload distribution", async () => {
+    vi.stubGlobal(
+      "fetch",
+      createDashboardFetchStub({
+        reviewQueueData: [],
+        reviewQueueMeta: { page: 1, pageSize: 10, totalItems: 0, totalPages: 0 },
+        workloadDistributionData: {
+          summary: {
+            repositoryId,
+            from: "2026-08-01",
+            to: "2026-08-12",
+            totalPullRequests: 0,
+            totalReviews: 0,
+            topContributorShare: 0,
+            topReviewerShare: 0,
+          },
+          contributors: [],
+          reviewers: [],
+        },
+      }),
+    );
+
+    renderApp("/dashboard");
+
+    expect(await screen.findByText("Review queue is empty")).toBeInTheDocument();
+    expect(screen.getByText("No workload data available")).toBeInTheDocument();
+  });
+
+  it("fetches previous period data when comparison is toggled on", async () => {
+    const fetchStub = createDashboardFetchStub();
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+    const currentRange = getDashboardDateRangeForPreset(30);
+    const previousRange = getPreviousDateRange(currentRange.from, currentRange.to);
+
+    renderApp("/dashboard");
+
+    expect(await screen.findByText("internal/metrics/calculator.go")).toBeInTheDocument();
+
+    const compareCheckbox = screen.getByLabelText("Compare to previous period");
+    await user.click(compareCheckbox);
+
+    expect(compareCheckbox).toBeChecked();
+
+    await screen.findByText((content) => content.includes(" vs "));
+
+    const requestedUrls = fetchStub.mock.calls.map(([input]) => String(input));
+
+    expect(
+      requestedUrls.some(
+        (url) =>
+          url.includes(`/api/v1/repositories/${repositoryId}/metrics/pull-requests`) &&
+          url.includes(`from=${previousRange.from}`) &&
+          url.includes(`to=${previousRange.to}`),
+      ),
+    ).toBe(true);
+  });
+
   it("changes date range and repository selection", async () => {
     const fetchStub = createDashboardFetchStub();
     vi.stubGlobal("fetch", fetchStub);
@@ -345,8 +498,10 @@ describe("dashboard route", () => {
 
     expect(await screen.findByText("internal/metrics/calculator.go")).toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText("Repository"), repositoryIdTwo);
-    await user.selectOptions(screen.getByLabelText("Date range"), "7");
+    await user.click(screen.getByLabelText("Repository"));
+    await user.click(await screen.findByRole("option", { name: "devlens-labs/devlens-web" }));
+    await user.click(screen.getByLabelText("Date range"));
+    await user.click(await screen.findByRole("option", { name: "Last 7 Days" }));
 
     const requestedUrls = fetchStub.mock.calls.map(([input]) => String(input));
 

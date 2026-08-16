@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
-import * as echarts from "echarts";
-import type { EChartsOption } from "echarts";
+import type { ECharts, EChartsOption } from "echarts";
 import { EmptyState } from "@/components/shared/query-state";
 
 type EChartPanelProps = {
@@ -25,7 +24,7 @@ export function EChartPanel({
   height = 320,
 }: EChartPanelProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const chartRef = useRef<echarts.ECharts | null>(null);
+  const chartRef = useRef<ECharts | null>(null);
   const optionRef = useRef(option);
   const loadingRef = useRef(loading);
 
@@ -39,32 +38,57 @@ export function EChartPanel({
       return;
     }
 
+    let cancelled = false;
+    let chart: ECharts | null = null;
+    let resizeObserver: ResizeObserver | null = null;
+    let handleThemeChange: (() => void) | null = null;
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const chart = echarts.init(containerRef.current, mediaQuery.matches ? "dark" : undefined);
-    chartRef.current = chart;
 
-    const resizeObserver = new ResizeObserver(() => {
-      chart.resize();
-    });
-    resizeObserver.observe(containerRef.current);
-
-    const handleThemeChange = () => {
-      chart.dispose();
-      const nextChart = echarts.init(containerRef.current, mediaQuery.matches ? "dark" : undefined);
-      chartRef.current = nextChart;
-      nextChart.setOption(optionRef.current, true);
-      nextChart.hideLoading();
-      if (loadingRef.current) {
-        nextChart.showLoading("default");
+    // Loaded lazily so pages that never render a chart don't pull the
+    // (large) echarts bundle into their initial chunk.
+    void import("echarts").then((echarts) => {
+      if (cancelled || !containerRef.current) {
+        return;
       }
-    };
 
-    mediaQuery.addEventListener("change", handleThemeChange);
+      chart = echarts.init(containerRef.current, mediaQuery.matches ? "dark" : undefined);
+      chartRef.current = chart;
+      chart.setOption(optionRef.current, true);
+      if (loadingRef.current) {
+        chart.showLoading("default");
+      }
+
+      resizeObserver = new ResizeObserver(() => {
+        chart?.resize();
+      });
+      resizeObserver.observe(containerRef.current);
+
+      handleThemeChange = () => {
+        if (!containerRef.current) {
+          return;
+        }
+
+        chart?.dispose();
+        const nextChart = echarts.init(containerRef.current, mediaQuery.matches ? "dark" : undefined);
+        chart = nextChart;
+        chartRef.current = nextChart;
+        nextChart.setOption(optionRef.current, true);
+        nextChart.hideLoading();
+        if (loadingRef.current) {
+          nextChart.showLoading("default");
+        }
+      };
+
+      mediaQuery.addEventListener("change", handleThemeChange);
+    });
 
     return () => {
-      mediaQuery.removeEventListener("change", handleThemeChange);
-      resizeObserver.disconnect();
-      chart.dispose();
+      cancelled = true;
+      if (handleThemeChange) {
+        mediaQuery.removeEventListener("change", handleThemeChange);
+      }
+      resizeObserver?.disconnect();
+      chart?.dispose();
       chartRef.current = null;
     };
   }, []);
@@ -120,7 +144,7 @@ export function EChartPanel({
         ref={containerRef}
         role="img"
         aria-label={title}
-        className="w-full rounded-2xl border border-border/70 bg-background/60"
+        className="relative w-full overflow-hidden rounded-2xl border border-border/70 bg-background/60"
         style={{ height }}
       />
     </div>

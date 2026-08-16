@@ -1,4 +1,5 @@
 import { useHealthQuery } from "@/features/health/use-health-query";
+import { getErrorMessage } from "@/lib/api-errors";
 
 export function HealthStatusCard() {
   const { data, isLoading, isError, error } = useHealthQuery();
@@ -9,9 +10,9 @@ export function HealthStatusCard() {
 
   if (isError) {
     return (
-      <div className="space-y-2">
+        <div className="space-y-2">
         <p className="text-sm font-medium text-accent">Backend connection not available</p>
-        <p className="text-sm text-muted-foreground">{error instanceof Error ? error.message : "Unknown error"}</p>
+        <p className="text-sm text-muted-foreground">{getErrorMessage(error)}</p>
       </div>
     );
   }
@@ -23,20 +24,20 @@ export function HealthStatusCard() {
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <div>
-        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Service</p>
-        <p className="mt-2 text-xl font-semibold">{data.service ?? "devlens-api"}</p>
-      </div>
-      <div>
         <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Status</p>
         <p className="mt-2 text-xl font-semibold capitalize">{data.status}</p>
       </div>
       <div>
-        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Version</p>
-        <p className="mt-2 text-lg font-medium">{data.version ?? "Not available"}</p>
-      </div>
-      <div>
         <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Timestamp</p>
         <p className="mt-2 text-lg font-medium">{data.timestamp}</p>
+      </div>
+      <div>
+        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Postgres</p>
+        <p className="mt-2 text-lg font-medium capitalize">{data.dependencies.postgres.status}</p>
+      </div>
+      <div>
+        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">ClickHouse</p>
+        <p className="mt-2 text-lg font-medium capitalize">{data.dependencies.clickhouse.status}</p>
       </div>
     </div>
   );

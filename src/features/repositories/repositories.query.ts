@@ -1,5 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
-import { getRepository, listRepositories, type ListRepositoriesParams } from "@/features/repositories/repositories.api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  getRepository,
+  listRepositories,
+  updateRepository,
+  type ListRepositoriesParams,
+} from "@/features/repositories/repositories.api";
 
 export const repositoriesKeys = {
   all: ["repositories"] as const,
@@ -22,5 +27,18 @@ export function useRepositoryDetailQuery(repositoryId: string) {
   return useQuery({
     queryKey: repositoriesKeys.detail(repositoryId),
     queryFn: () => getRepository(repositoryId),
+  });
+}
+
+export function useUpdateRepositoryMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ repositoryId, isActive }: { repositoryId: string; isActive: boolean }) =>
+      updateRepository(repositoryId, { isActive }),
+    onSuccess: (_, variables) => {
+      void queryClient.invalidateQueries({ queryKey: repositoriesKeys.detail(variables.repositoryId) });
+      void queryClient.invalidateQueries({ queryKey: repositoriesKeys.lists() });
+    },
   });
 }

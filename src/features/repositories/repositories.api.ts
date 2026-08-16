@@ -6,6 +6,10 @@ type ListRepositoriesResponse =
   paths["/organizations/{organizationId}/repositories"]["get"]["responses"][200]["content"]["application/json"];
 type GetRepositoryResponse =
   paths["/repositories/{repositoryId}"]["get"]["responses"][200]["content"]["application/json"];
+type UpdateRepositoryResponse =
+  paths["/repositories/{repositoryId}"]["patch"]["responses"][200]["content"]["application/json"];
+type UpdateRepositoryRequestBody =
+  operations["updateRepository"]["requestBody"]["content"]["application/json"];
 
 export type ListRepositoriesParams = {
   organizationId: operations["listRepositories"]["parameters"]["path"]["organizationId"];
@@ -47,6 +51,15 @@ export async function listRepositories({
 export async function getRepository(repositoryId: string) {
   const response = await apiRequest<GetRepositoryResponse>(`/repositories/${repositoryId}`, {
     method: "GET",
+  });
+
+  return repositoryResponseSchema.parse(response);
+}
+
+export async function updateRepository(repositoryId: string, payload: UpdateRepositoryRequestBody) {
+  const response = await apiRequest<UpdateRepositoryResponse>(`/repositories/${repositoryId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
   });
 
   return repositoryResponseSchema.parse(response);

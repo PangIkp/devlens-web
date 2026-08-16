@@ -10,9 +10,11 @@ describe("getHealth", () => {
           Promise.resolve(
             JSON.stringify({
               status: "ok",
-              service: "devlens-api",
-              version: "1.0.0",
               timestamp: "2026-08-11T00:00:00Z",
+              dependencies: {
+                postgres: { status: "ok" },
+                clickhouse: { status: "ok" },
+              },
             }),
           ),
       }),
@@ -20,9 +22,11 @@ describe("getHealth", () => {
 
     await expect(getHealth()).resolves.toEqual({
       status: "ok",
-      service: "devlens-api",
-      version: "1.0.0",
       timestamp: "2026-08-11T00:00:00Z",
+      dependencies: {
+        postgres: { status: "ok" },
+        clickhouse: { status: "ok" },
+      },
     });
   });
 });

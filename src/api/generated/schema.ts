@@ -4,6 +4,80 @@
  */
 
 export interface paths {
+    "/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a user session
+         * @description Creates or updates a user record by email and returns an access token plus refresh token for the new session.
+         */
+        post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh an existing session */
+        post: operations["refreshSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke the current session */
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get current user profile
+         * @description Returns the currently authenticated user profile.
+         */
+        get: operations["getMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -11,8 +85,25 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Check API health */
+        /** Check API liveness */
         get: operations["getHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/readiness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Check API readiness */
+        get: operations["getReadiness"];
         put?: never;
         post?: never;
         delete?: never;
@@ -31,7 +122,10 @@ export interface paths {
         /** Get organizations accessible by current user */
         get: operations["listOrganizations"];
         put?: never;
-        /** Create organization */
+        /**
+         * Create organization
+         * @description Creates an organization and assigns the authenticated user as the initial owner.
+         */
         post: operations["createOrganization"];
         delete?: never;
         options?: never;
@@ -68,10 +162,7 @@ export interface paths {
         /** Get organization members */
         get: operations["listOrganizationMembers"];
         put?: never;
-        /**
-         * Add organization member
-         * @description Authentication is deferred in the current milestone, so `userId` is provided in the request body.
-         */
+        /** Add organization member */
         post: operations["createOrganizationMember"];
         delete?: never;
         options?: never;
@@ -129,7 +220,11 @@ export interface paths {
         get: operations["getGitHubConnection"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Disconnect the GitHub App installation for an organization
+         * @description Soft-disconnects the organization's GitHub App installation (sets disconnected_at) and cancels any in-progress sync jobs for its repositories. Historical data is retained and purged later per the configured retention window; reconnecting before that purge reuses the existing data.
+         */
+        delete: operations["disconnectGitHubConnection"];
         options?: never;
         head?: never;
         patch?: never;
@@ -203,6 +298,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/organizations/{organizationId}/settings/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get effective insight rule and metric rule settings for an organization
+         * @description Returns the effective configuration (stored overrides merged over the platform defaults) for the 6 insight rule types and the repository metrics rules (day type, hotspot weights). Fields an organization has never overridden report the platform default.
+         */
+        get: operations["getOrganizationRuleSettings"];
+        /**
+         * Update insight rule and metric rule settings for an organization
+         * @description Partially updates the organization's rule overrides. Only the sections/fields included in the request body change; omitted fields keep their previous value (or the platform default if never overridden). High-severity thresholds are not yet configurable and always use the platform default.
+         */
+        put: operations["updateOrganizationRuleSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organizations/{organizationId}/settings/retention": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get analytics data retention settings for an organization
+         * @description Returns the organization's effective raw analytics data retention window in days. `enforced` is currently always `false`: the override is stored and reported here for the frontend to build against, but actual deletion still runs on a single global ClickHouse TTL applied to all organizations. Per-organization enforcement is a follow-up.
+         */
+        get: operations["getOrganizationRetentionSettings"];
+        /**
+         * Update analytics data retention settings for an organization
+         * @description Sets the organization's raw analytics retention override in days. Not retroactive: lowering the value does not delete existing data immediately (see the `enforced` note on GET).
+         */
+        put: operations["updateOrganizationRetentionSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/repositories/{repositoryId}": {
         parameters: {
             query?: never;
@@ -222,6 +365,40 @@ export interface paths {
          * @description Use this endpoint to rename, change default branch, deactivate, or archive a repository without deleting historical records.
          */
         patch: operations["updateRepository"];
+        trace?: never;
+    };
+    "/pull-requests/{pullRequestId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get pull request detail */
+        get: operations["getPullRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pull-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List pull requests for a repository */
+        get: operations["listPullRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/repositories/{repositoryId}/sync": {
@@ -275,6 +452,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sync-jobs/{syncJobId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry a failed synchronization job */
+        post: operations["retrySyncJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sync-jobs/{syncJobId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel a pending or running synchronization job */
+        post: operations["cancelSyncJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/github/webhook": {
         parameters: {
             query?: never;
@@ -292,6 +503,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/webhooks/github": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Receive GitHub webhook deliveries */
+        post: operations["handleGitHubWebhookAlias"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/github/webhook-deliveries/{deliveryId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry a failed GitHub webhook delivery */
+        post: operations["retryGitHubWebhookDelivery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/repositories/{repositoryId}/dashboard/summary": {
         parameters: {
             query?: never;
@@ -301,6 +546,74 @@ export interface paths {
         };
         /** Get repository dashboard summary */
         get: operations["getDashboardSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/repositories/{repositoryId}/dashboard/pr-cycle-time": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get dashboard PR cycle time metrics */
+        get: operations["getDashboardPullRequestCycleTime"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/repositories/{repositoryId}/dashboard/review-wait-time": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get dashboard review wait time metrics */
+        get: operations["getDashboardReviewWaitTime"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/repositories/{repositoryId}/dashboard/review-queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get dashboard review queue */
+        get: operations["getDashboardReviewQueue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/repositories/{repositoryId}/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get consolidated repository metrics */
+        get: operations["getRepositoryMetrics"];
         put?: never;
         post?: never;
         delete?: never;
@@ -360,6 +673,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/repositories/{repositoryId}/metrics/workload-distribution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get contributor and reviewer workload distribution */
+        get: operations["getWorkloadDistribution"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/repositories/{repositoryId}/metrics/hotspots": {
         parameters: {
             query?: never;
@@ -377,11 +707,96 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/organizations/{organizationId}/insights": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List generated insights for an organization */
+        get: operations["listInsights"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/insights": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List generated insights across a selected organization */
+        get: operations["listInsightsAlias"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organizations/{organizationId}/insights/{insightKey}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark an insight as reviewed */
+        post: operations["reviewInsight"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organizations/{organizationId}/insights/{insightKey}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dismiss an insight */
+        post: operations["dismissInsight"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organizations/{organizationId}/insights/{insightKey}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reopen an insight */
+        post: operations["reopenInsight"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        HealthResponse: {
+        LivenessHealthResponse: {
             /** @example ok */
             status: string;
             /** Format: date-time */
@@ -389,6 +804,17 @@ export interface components {
             dependencies: {
                 postgres: components["schemas"]["DependencyStatus"];
                 clickhouse: components["schemas"]["DependencyStatus"];
+            };
+        };
+        ReadinessHealthResponse: {
+            /** @example ok */
+            status: string;
+            /** Format: date-time */
+            timestamp: string;
+            dependencies: {
+                postgres: components["schemas"]["DependencyStatus"];
+                clickhouse: components["schemas"]["DependencyStatus"];
+                nats: components["schemas"]["DependencyStatus"];
             };
         };
         DependencyStatus: {
@@ -517,6 +943,126 @@ export interface components {
         GitHubConnectionResponse: {
             data: components["schemas"]["GitHubConnection"];
         };
+        OrganizationRuleSettings: {
+            largePR: components["schemas"]["LargePRRuleSettings"];
+            slowReview: components["schemas"]["SlowReviewRuleSettings"];
+            hotspot: components["schemas"]["HotspotRuleSettings"];
+            deploymentFailure: components["schemas"]["DeploymentFailureRuleSettings"];
+            reviewConcentration: components["schemas"]["ReviewConcentrationRuleSettings"];
+            bottleneck: components["schemas"]["BottleneckRuleSettings"];
+            metrics: components["schemas"]["MetricRuleSettings"];
+            /** Format: date-time */
+            updatedAt?: string | null;
+        };
+        LargePRRuleSettings: {
+            enabled: boolean;
+            filesThreshold: number;
+            totalChangesThreshold: number;
+        };
+        SlowReviewRuleSettings: {
+            enabled: boolean;
+            /** Format: double */
+            waitHoursThreshold: number;
+        };
+        HotspotRuleSettings: {
+            enabled: boolean;
+            scoreThreshold: number;
+        };
+        DeploymentFailureRuleSettings: {
+            enabled: boolean;
+            minimumDeployments: number;
+            /** Format: double */
+            failureRateThreshold: number;
+        };
+        ReviewConcentrationRuleSettings: {
+            enabled: boolean;
+            minimumReviewCount: number;
+            /** Format: double */
+            shareThreshold: number;
+        };
+        BottleneckRuleSettings: {
+            enabled: boolean;
+            minimumMergedCount: number;
+            /** Format: double */
+            averageCycleHoursThreshold: number;
+            staleOpenCountThreshold: number;
+            staleOpenAgeDays: number;
+        };
+        MetricRuleSettings: {
+            /** @enum {string} */
+            defaultDayType: "calendar" | "business";
+            /** Format: double */
+            hotspotCommitWeight: number;
+            /** Format: double */
+            hotspotAdditionsWeight: number;
+            /** Format: double */
+            hotspotDeletionsWeight: number;
+        };
+        OrganizationRuleSettingsResponse: {
+            data: components["schemas"]["OrganizationRuleSettings"];
+        };
+        /** @description Every field at every level is optional. Only sections/fields present in the request are changed; everything else keeps its previous value (or the platform default if never overridden). */
+        UpdateOrganizationRuleSettingsRequest: {
+            largePR?: {
+                enabled?: boolean;
+                filesThreshold?: number;
+                totalChangesThreshold?: number;
+            };
+            slowReview?: {
+                enabled?: boolean;
+                /** Format: double */
+                waitHoursThreshold?: number;
+            };
+            hotspot?: {
+                enabled?: boolean;
+                scoreThreshold?: number;
+            };
+            deploymentFailure?: {
+                enabled?: boolean;
+                minimumDeployments?: number;
+                /** Format: double */
+                failureRateThreshold?: number;
+            };
+            reviewConcentration?: {
+                enabled?: boolean;
+                minimumReviewCount?: number;
+                /** Format: double */
+                shareThreshold?: number;
+            };
+            bottleneck?: {
+                enabled?: boolean;
+                minimumMergedCount?: number;
+                /** Format: double */
+                averageCycleHoursThreshold?: number;
+                staleOpenCountThreshold?: number;
+                staleOpenAgeDays?: number;
+            };
+            metrics?: {
+                /** @enum {string} */
+                defaultDayType?: "calendar" | "business";
+                /** Format: double */
+                hotspotCommitWeight?: number;
+                /** Format: double */
+                hotspotAdditionsWeight?: number;
+                /** Format: double */
+                hotspotDeletionsWeight?: number;
+            };
+        };
+        OrganizationRetentionSettings: {
+            /** @description Effective raw analytics data retention window in days. */
+            analyticsRawRetentionDays: number;
+            /** @description Always false today. The value is stored and reported here, but data deletion still runs on a single global ClickHouse TTL shared by all organizations; per-organization enforcement is a follow-up. */
+            enforced: boolean;
+            /** Format: date-time */
+            updatedAt?: string | null;
+        };
+        OrganizationRetentionSettingsResponse: {
+            data: components["schemas"]["OrganizationRetentionSettings"];
+        };
+        UpdateOrganizationRetentionSettingsRequest: {
+            /** @description Set to null to clear the override and fall back to the platform-wide default. */
+            analyticsRawRetentionDays?: number | null;
+        };
         StartGitHubInstallationRequest: {
             /** Format: uri */
             redirectUrl?: string | null;
@@ -598,6 +1144,147 @@ export interface components {
             data: components["schemas"]["Repository"][];
             pagination: components["schemas"]["PaginationMeta"];
         };
+        UserProfile: {
+            /** Format: uuid */
+            id: string;
+            /** Format: email */
+            email: string;
+            name?: string | null;
+            avatarUrl?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt?: string | null;
+        };
+        MeResponse: {
+            data: components["schemas"]["UserProfile"];
+        };
+        LoginRequest: {
+            /** Format: email */
+            email: string;
+            name?: string | null;
+        };
+        RefreshSessionRequest: {
+            refreshToken: string;
+        };
+        SessionPayload: {
+            accessToken: string;
+            refreshToken: string;
+            /** @example Bearer */
+            tokenType: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: date-time */
+            refreshExpiresAt: string;
+            user: components["schemas"]["UserProfile"];
+        };
+        SessionResponse: {
+            data: components["schemas"]["SessionPayload"];
+        };
+        PullRequestReview: {
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            githubReviewId: number;
+            reviewer: string;
+            state: string;
+            /** Format: date-time */
+            reviewRequestedAt?: string | null;
+            /** Format: date-time */
+            firstReviewAt?: string | null;
+            /** Format: date-time */
+            reviewSubmittedAt?: string | null;
+        };
+        PullRequestFileChange: {
+            /** Format: uuid */
+            id: string;
+            filePath: string;
+            additions: number;
+            deletions: number;
+            commitCount: number;
+        };
+        PullRequestTimelineEvent: {
+            /** @enum {string} */
+            type: "created" | "review_requested" | "review_started" | "review_submitted" | "merged" | "closed";
+            label: string;
+            actor?: string | null;
+            state?: string | null;
+            /** Format: date-time */
+            occurredAt: string;
+        };
+        PullRequestRiskIndicator: {
+            /** @enum {string} */
+            level: "low" | "medium" | "high";
+            reasons: string[];
+        };
+        PullRequestRepositoryRef: {
+            /** Format: uuid */
+            id: string;
+            fullName: string;
+        };
+        PullRequestDetail: {
+            /** Format: uuid */
+            id: string;
+            repository: components["schemas"]["PullRequestRepositoryRef"];
+            /** Format: int64 */
+            githubPrId: number;
+            number: number;
+            title: string;
+            author: string;
+            state: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            mergedAt?: string | null;
+            /** Format: date-time */
+            closedAt?: string | null;
+            additions: number;
+            deletions: number;
+            filesChanged: number;
+            isDraft: boolean;
+            reviews: components["schemas"]["PullRequestReview"][];
+            fileChanges: components["schemas"]["PullRequestFileChange"][];
+            timeline: components["schemas"]["PullRequestTimelineEvent"][];
+            riskIndicator: components["schemas"]["PullRequestRiskIndicator"];
+            /**
+             * Format: int64
+             * @description Minutes from createdAt to mergedAt. Null if the PR has not been merged.
+             */
+            cycleTimeMinutes?: number | null;
+            /**
+             * Format: int64
+             * @description Minutes from the PR's first review request to the first non-bot reviewer's response. Null if no non-bot reviewer has responded yet.
+             */
+            reviewWaitMinutes?: number | null;
+        };
+        PullRequestResponse: {
+            data: components["schemas"]["PullRequestDetail"];
+        };
+        PullRequestListItem: {
+            /** Format: uuid */
+            id: string;
+            repository: components["schemas"]["PullRequestRepositoryRef"];
+            /** Format: int64 */
+            githubPrId: number;
+            number: number;
+            title: string;
+            author: string;
+            state: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            mergedAt?: string | null;
+            /** Format: date-time */
+            closedAt?: string | null;
+            additions: number;
+            deletions: number;
+            filesChanged: number;
+            isDraft: boolean;
+        };
+        PullRequestListResponse: {
+            data: components["schemas"]["PullRequestListItem"][];
+            pagination: components["schemas"]["PaginationMeta"];
+        };
         CreateSyncRequest: {
             /**
              * @default incremental
@@ -613,7 +1300,7 @@ export interface components {
             /** Format: uuid */
             repositoryId: string;
             /** @enum {string} */
-            status: "pending" | "running" | "completed" | "failed";
+            status: "pending" | "running" | "completed" | "failed" | "canceled";
             progress: number;
             /** Format: uuid */
             triggeredBy?: string | null;
@@ -639,6 +1326,8 @@ export interface components {
             eventType: string;
             duplicate: boolean;
             enqueued: boolean;
+            /** @enum {string} */
+            processingStatus: "received" | "enqueued" | "processed" | "ignored" | "failed";
             /** Format: uuid */
             syncJobId?: string | null;
             action?: string | null;
@@ -649,6 +1338,9 @@ export interface components {
             data: components["schemas"]["GitHubWebhookDelivery"];
         };
         DashboardSummary: {
+            metricVersion: number;
+            /** @enum {string} */
+            dayType: "calendar" | "business";
             /** Format: uuid */
             repositoryId: string;
             /** Format: date */
@@ -676,6 +1368,9 @@ export interface components {
             value: number;
         };
         PullRequestMetrics: {
+            metricVersion: number;
+            /** @enum {string} */
+            dayType: "calendar" | "business";
             /** Format: double */
             averageCycleTimeMinutes: number;
             /** Format: double */
@@ -690,6 +1385,9 @@ export interface components {
             data: components["schemas"]["PullRequestMetrics"];
         };
         ReviewMetrics: {
+            metricVersion: number;
+            /** @enum {string} */
+            dayType: "calendar" | "business";
             /** Format: double */
             averageWaitMinutes: number;
             /** Format: double */
@@ -702,6 +1400,9 @@ export interface components {
             data: components["schemas"]["ReviewMetrics"];
         };
         DeploymentMetrics: {
+            metricVersion: number;
+            /** @enum {string} */
+            dayType: "calendar" | "business";
             deploymentCount: number;
             /** Format: double */
             deploymentFrequency: number;
@@ -711,6 +1412,41 @@ export interface components {
         };
         DeploymentMetricsResponse: {
             data: components["schemas"]["DeploymentMetrics"];
+        };
+        ContributorDistributionItem: {
+            author: string;
+            pullRequestCount: number;
+            /** Format: double */
+            share: number;
+        };
+        ReviewerDistributionItem: {
+            reviewer: string;
+            reviewCount: number;
+            reviewedPullRequestCount: number;
+            /** Format: double */
+            share: number;
+        };
+        WorkloadDistributionSummary: {
+            /** Format: uuid */
+            repositoryId: string;
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            totalPullRequests: number;
+            totalReviews: number;
+            /** Format: double */
+            topContributorShare: number;
+            /** Format: double */
+            topReviewerShare: number;
+        };
+        WorkloadDistribution: {
+            summary: components["schemas"]["WorkloadDistributionSummary"];
+            contributors: components["schemas"]["ContributorDistributionItem"][];
+            reviewers: components["schemas"]["ReviewerDistributionItem"][];
+        };
+        WorkloadDistributionResponse: {
+            data: components["schemas"]["WorkloadDistribution"];
         };
         HotspotFile: {
             /** @example internal/metrics/calculator.go */
@@ -724,6 +1460,96 @@ export interface components {
         HotspotMetricsResponse: {
             data: components["schemas"]["HotspotFile"][];
             meta: components["schemas"]["PaginationMeta"];
+        };
+        RepositoryMetricsPayload: {
+            metricVersion: number;
+            /** @enum {string} */
+            dayType: "calendar" | "business";
+            /** Format: uuid */
+            repositoryId: string;
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            interval: string;
+            summary: components["schemas"]["DashboardSummary"];
+            pullRequests: components["schemas"]["PullRequestMetrics"];
+            reviews: components["schemas"]["ReviewMetrics"];
+            deployments: components["schemas"]["DeploymentMetrics"];
+            hotspots: components["schemas"]["HotspotFile"][];
+        };
+        RepositoryMetricsResponse: {
+            data: components["schemas"]["RepositoryMetricsPayload"];
+        };
+        ReviewQueueItem: {
+            /** Format: uuid */
+            pullRequestId: string;
+            number: number;
+            title: string;
+            author: string;
+            /** Format: date-time */
+            reviewRequestedAt?: string | null;
+            waitingMinutes: number;
+        };
+        ReviewQueueResponse: {
+            data: components["schemas"]["ReviewQueueItem"][];
+            meta: components["schemas"]["PaginationMeta"];
+        };
+        ReviewInsightRequest: {
+            /** Format: uuid */
+            reviewedBy?: string;
+        };
+        Insight: {
+            insightKey: string;
+            /** @enum {string} */
+            insightType: "bottleneck_detection" | "large_pr_detection" | "slow_review_detection" | "hotspot_detection" | "deployment_failure_trend" | "review_concentration";
+            /** @enum {string} */
+            status: "open" | "reviewed" | "dismissed";
+            /** @enum {string} */
+            severity: "low" | "medium" | "high" | "critical";
+            title: string;
+            summary: string;
+            /** Format: uuid */
+            organizationId: string;
+            /** Format: uuid */
+            repositoryId?: string | null;
+            repositoryName?: string | null;
+            /** Format: date-time */
+            detectedAt: string;
+            evidence?: {
+                [key: string]: unknown;
+            };
+            /** Format: uuid */
+            reviewedBy?: string | null;
+            /** Format: date-time */
+            reviewedAt?: string | null;
+            /** Format: date-time */
+            dismissedAt?: string | null;
+            /** Format: date-time */
+            reopenedAt?: string | null;
+        };
+        InsightListResponse: {
+            data: components["schemas"]["Insight"][];
+            pagination: components["schemas"]["PaginationMeta"];
+        };
+        InsightStatusPayload: {
+            insightKey: string;
+            insightType: string;
+            /** @enum {string} */
+            status: "open" | "reviewed" | "dismissed";
+            /** Format: uuid */
+            reviewedBy?: string | null;
+            /** Format: date-time */
+            reviewedAt?: string | null;
+            /** Format: date-time */
+            dismissedAt?: string | null;
+            /** Format: date-time */
+            reopenedAt?: string | null;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        InsightStatusResponse: {
+            data: components["schemas"]["InsightStatusPayload"];
         };
         ErrorDetail: {
             /** @example REPOSITORY_NOT_FOUND */
@@ -752,6 +1578,7 @@ export interface components {
         /** @description Authentication is required or token is invalid */
         Unauthorized: {
             headers: {
+                "X-Trace-Id": components["headers"]["TraceID"];
                 [name: string]: unknown;
             };
             content: {
@@ -761,6 +1588,7 @@ export interface components {
         /** @description User does not have permission to access the resource */
         Forbidden: {
             headers: {
+                "X-Trace-Id": components["headers"]["TraceID"];
                 [name: string]: unknown;
             };
             content: {
@@ -770,6 +1598,7 @@ export interface components {
         /** @description Requested resource was not found */
         NotFound: {
             headers: {
+                "X-Trace-Id": components["headers"]["TraceID"];
                 [name: string]: unknown;
             };
             content: {
@@ -779,6 +1608,7 @@ export interface components {
         /** @description Request conflicts with current resource state */
         Conflict: {
             headers: {
+                "X-Trace-Id": components["headers"]["TraceID"];
                 [name: string]: unknown;
             };
             content: {
@@ -788,16 +1618,38 @@ export interface components {
         /** @description Request validation failed */
         ValidationError: {
             headers: {
+                "X-Trace-Id": components["headers"]["TraceID"];
                 [name: string]: unknown;
             };
             content: {
                 "application/json": components["schemas"]["ValidationErrorResponse"];
             };
         };
+        /** @description Request rate limit exceeded */
+        TooManyRequests: {
+            headers: {
+                /** @description Number of seconds to wait before retrying the request. */
+                "Retry-After"?: number;
+                "X-Trace-Id": components["headers"]["TraceID"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
     };
     parameters: {
         OrganizationId: string;
+        OrganizationIdQuery: string;
         RepositoryId: string;
+        PullRequestId: string;
+        UserId: string;
+        RepositoryIdQuery: string;
+        PullRequestStatus: "open" | "closed" | "merged";
+        PullRequestSortBy: "createdAt" | "number";
+        InsightKey: string;
+        InsightType: "bottleneck_detection" | "large_pr_detection" | "slow_review_detection" | "hotspot_detection" | "deployment_failure_trend" | "review_concentration";
+        InsightStatus: "open" | "reviewed" | "dismissed";
         MemberId: string;
         SyncJobId: string;
         Page: number;
@@ -812,14 +1664,111 @@ export interface components {
         /** @description Inclusive end date */
         DateTo: string;
         Interval: "day" | "week" | "month";
+        /** @description Controls how per-day normalized metrics such as deployment frequency are divided across the selected range. Duration metrics still use elapsed calendar time. When omitted, the backend uses its configured metric rule default. */
+        DayType: "calendar" | "business";
         Environment: string;
     };
     requestBodies: never;
-    headers: never;
+    headers: {
+        /** @description Request trace identifier for correlating logs and responses. */
+        TraceID: string;
+    };
     pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Session created successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+        };
+    };
+    refreshSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefreshSessionRequest"];
+            };
+        };
+        responses: {
+            /** @description Session refreshed successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session revoked successfully */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current user profile */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     getHealth: {
         parameters: {
             query?: never;
@@ -829,13 +1778,51 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description API is healthy */
+            /** @description API process is alive and core stores are reachable */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HealthResponse"];
+                    "application/json": components["schemas"]["LivenessHealthResponse"];
+                };
+            };
+            /** @description Core stores required for liveness are unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LivenessHealthResponse"];
+                };
+            };
+        };
+    };
+    getReadiness: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Service and dependencies are ready */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReadinessHealthResponse"];
+                };
+            };
+            /** @description One or more required dependencies are unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReadinessHealthResponse"];
                 };
             };
         };
@@ -862,6 +1849,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
         };
     };
     createOrganization: {
@@ -887,6 +1875,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
             409: components["responses"]["Conflict"];
         };
     };
@@ -911,6 +1900,8 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -933,6 +1924,8 @@ export interface operations {
                 content?: never;
             };
             400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -961,6 +1954,8 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
@@ -986,6 +1981,8 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -1014,6 +2011,8 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
@@ -1038,6 +2037,8 @@ export interface operations {
                 content?: never;
             };
             400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
@@ -1068,6 +2069,8 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -1158,6 +2161,31 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    disconnectGitHubConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description GitHub connection disconnected */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubConnectionResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     startGitHubInstallation: {
         parameters: {
             query?: never;
@@ -1191,6 +2219,7 @@ export interface operations {
         parameters: {
             query: {
                 installation_id: number;
+                state: string;
                 setup_action?: string;
             };
             header?: never;
@@ -1220,6 +2249,7 @@ export interface operations {
             query?: {
                 page?: components["parameters"]["Page"];
                 pageSize?: components["parameters"]["PageSize"];
+                search?: components["parameters"]["Search"];
             };
             header?: never;
             path: {
@@ -1273,6 +2303,116 @@ export interface operations {
             409: components["responses"]["Conflict"];
         };
     };
+    getOrganizationRuleSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Effective organization rule settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationRuleSettingsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateOrganizationRuleSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateOrganizationRuleSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated organization rule settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationRuleSettingsResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getOrganizationRetentionSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Effective organization retention settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationRetentionSettingsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateOrganizationRetentionSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateOrganizationRetentionSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated organization retention settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationRetentionSettingsResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     getRepository: {
         parameters: {
             query?: never;
@@ -1293,7 +2433,6 @@ export interface operations {
                     "application/json": components["schemas"]["RepositoryResponse"];
                 };
             };
-            400: components["responses"]["ValidationError"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -1328,10 +2467,66 @@ export interface operations {
             409: components["responses"]["Conflict"];
         };
     };
-    createRepositorySync: {
+    getPullRequest: {
         parameters: {
             query?: never;
             header?: never;
+            path: {
+                pullRequestId: components["parameters"]["PullRequestId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pull request detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PullRequestResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listPullRequests: {
+        parameters: {
+            query?: {
+                repositoryId?: components["parameters"]["RepositoryIdQuery"];
+                page?: components["parameters"]["Page"];
+                pageSize?: components["parameters"]["PageSize"];
+                search?: components["parameters"]["Search"];
+                status?: components["parameters"]["PullRequestStatus"];
+                sortBy?: components["parameters"]["PullRequestSortBy"];
+                sortOrder?: components["parameters"]["SortOrder"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pull request list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PullRequestListResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createRepositorySync: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
             path: {
                 repositoryId: components["parameters"]["RepositoryId"];
             };
@@ -1413,6 +2608,58 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    retrySyncJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                syncJobId: components["parameters"]["SyncJobId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sync job re-queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncJobResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    cancelSyncJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                syncJobId: components["parameters"]["SyncJobId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sync job canceled */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncJobResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
     handleGitHubWebhook: {
         parameters: {
             query?: never;
@@ -1445,6 +2692,64 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
         };
     };
+    handleGitHubWebhookAlias: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-GitHub-Event": string;
+                "X-GitHub-Delivery": string;
+                "X-Hub-Signature-256": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Webhook accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubWebhookResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    retryGitHubWebhookDelivery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deliveryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Webhook delivery retried */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubWebhookResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
     getDashboardSummary: {
         parameters: {
             query: {
@@ -1452,6 +2757,8 @@ export interface operations {
                 from: components["parameters"]["DateFrom"];
                 /** @description Inclusive end date */
                 to: components["parameters"]["DateTo"];
+                /** @description Controls how per-day normalized metrics such as deployment frequency are divided across the selected range. Duration metrics still use elapsed calendar time. When omitted, the backend uses its configured metric rule default. */
+                dayType?: components["parameters"]["DayType"];
             };
             header?: never;
             path: {
@@ -1476,6 +2783,142 @@ export interface operations {
             422: components["responses"]["ValidationError"];
         };
     };
+    getDashboardPullRequestCycleTime: {
+        parameters: {
+            query: {
+                /** @description Inclusive start date */
+                from: components["parameters"]["DateFrom"];
+                /** @description Inclusive end date */
+                to: components["parameters"]["DateTo"];
+                interval?: components["parameters"]["Interval"];
+                /** @description Controls how per-day normalized metrics such as deployment frequency are divided across the selected range. Duration metrics still use elapsed calendar time. When omitted, the backend uses its configured metric rule default. */
+                dayType?: components["parameters"]["DayType"];
+            };
+            header?: never;
+            path: {
+                repositoryId: components["parameters"]["RepositoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pull request cycle time metrics */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PullRequestMetricsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getDashboardReviewWaitTime: {
+        parameters: {
+            query: {
+                /** @description Inclusive start date */
+                from: components["parameters"]["DateFrom"];
+                /** @description Inclusive end date */
+                to: components["parameters"]["DateTo"];
+                interval?: components["parameters"]["Interval"];
+                /** @description Controls how per-day normalized metrics such as deployment frequency are divided across the selected range. Duration metrics still use elapsed calendar time. When omitted, the backend uses its configured metric rule default. */
+                dayType?: components["parameters"]["DayType"];
+            };
+            header?: never;
+            path: {
+                repositoryId: components["parameters"]["RepositoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Review wait time metrics */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewMetricsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getDashboardReviewQueue: {
+        parameters: {
+            query: {
+                /** @description Inclusive start date */
+                from: components["parameters"]["DateFrom"];
+                /** @description Inclusive end date */
+                to: components["parameters"]["DateTo"];
+                page?: components["parameters"]["Page"];
+                pageSize?: components["parameters"]["PageSize"];
+            };
+            header?: never;
+            path: {
+                repositoryId: components["parameters"]["RepositoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Review queue items */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewQueueResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getRepositoryMetrics: {
+        parameters: {
+            query: {
+                /** @description Inclusive start date */
+                from: components["parameters"]["DateFrom"];
+                /** @description Inclusive end date */
+                to: components["parameters"]["DateTo"];
+                interval?: components["parameters"]["Interval"];
+                /** @description Controls how per-day normalized metrics such as deployment frequency are divided across the selected range. Duration metrics still use elapsed calendar time. When omitted, the backend uses its configured metric rule default. */
+                dayType?: components["parameters"]["DayType"];
+                environment?: components["parameters"]["Environment"];
+            };
+            header?: never;
+            path: {
+                repositoryId: components["parameters"]["RepositoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Consolidated repository metrics */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryMetricsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
     getPullRequestMetrics: {
         parameters: {
             query: {
@@ -1484,6 +2927,8 @@ export interface operations {
                 /** @description Inclusive end date */
                 to: components["parameters"]["DateTo"];
                 interval?: components["parameters"]["Interval"];
+                /** @description Controls how per-day normalized metrics such as deployment frequency are divided across the selected range. Duration metrics still use elapsed calendar time. When omitted, the backend uses its configured metric rule default. */
+                dayType?: components["parameters"]["DayType"];
             };
             header?: never;
             path: {
@@ -1516,6 +2961,8 @@ export interface operations {
                 /** @description Inclusive end date */
                 to: components["parameters"]["DateTo"];
                 interval?: components["parameters"]["Interval"];
+                /** @description Controls how per-day normalized metrics such as deployment frequency are divided across the selected range. Duration metrics still use elapsed calendar time. When omitted, the backend uses its configured metric rule default. */
+                dayType?: components["parameters"]["DayType"];
             };
             header?: never;
             path: {
@@ -1548,6 +2995,8 @@ export interface operations {
                 /** @description Inclusive end date */
                 to: components["parameters"]["DateTo"];
                 interval?: components["parameters"]["Interval"];
+                /** @description Controls how per-day normalized metrics such as deployment frequency are divided across the selected range. Duration metrics still use elapsed calendar time. When omitted, the backend uses its configured metric rule default. */
+                dayType?: components["parameters"]["DayType"];
                 environment?: components["parameters"]["Environment"];
             };
             header?: never;
@@ -1565,6 +3014,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeploymentMetricsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getWorkloadDistribution: {
+        parameters: {
+            query: {
+                /** @description Inclusive start date */
+                from: components["parameters"]["DateFrom"];
+                /** @description Inclusive end date */
+                to: components["parameters"]["DateTo"];
+            };
+            header?: never;
+            path: {
+                repositoryId: components["parameters"]["RepositoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Workload distribution metrics */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkloadDistributionResponse"];
                 };
             };
             401: components["responses"]["Unauthorized"];
@@ -1599,6 +3079,162 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HotspotMetricsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    listInsights: {
+        parameters: {
+            query: {
+                repositoryId?: components["parameters"]["RepositoryIdQuery"];
+                type?: components["parameters"]["InsightType"];
+                status?: components["parameters"]["InsightStatus"];
+                /** @description Inclusive start date */
+                from: components["parameters"]["DateFrom"];
+                /** @description Inclusive end date */
+                to: components["parameters"]["DateTo"];
+                page?: components["parameters"]["Page"];
+                pageSize?: components["parameters"]["PageSize"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Insight list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightListResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    listInsightsAlias: {
+        parameters: {
+            query: {
+                organizationId: components["parameters"]["OrganizationIdQuery"];
+                repositoryId?: components["parameters"]["RepositoryIdQuery"];
+                type?: components["parameters"]["InsightType"];
+                status?: components["parameters"]["InsightStatus"];
+                /** @description Inclusive start date */
+                from: components["parameters"]["DateFrom"];
+                /** @description Inclusive end date */
+                to: components["parameters"]["DateTo"];
+                page?: components["parameters"]["Page"];
+                pageSize?: components["parameters"]["PageSize"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Insight list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightListResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    reviewInsight: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                insightKey: components["parameters"]["InsightKey"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ReviewInsightRequest"];
+            };
+        };
+        responses: {
+            /** @description Insight status updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightStatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    dismissInsight: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                insightKey: components["parameters"]["InsightKey"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Insight status updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightStatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    reopenInsight: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                insightKey: components["parameters"]["InsightKey"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Insight status updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightStatusResponse"];
                 };
             };
             401: components["responses"]["Unauthorized"];
