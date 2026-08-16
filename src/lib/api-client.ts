@@ -51,7 +51,25 @@ async function parseResponse(response: Response) {
   }
 }
 
-async function refreshAccessToken() {
+// The backend rotates refresh tokens on every use (the old one stops
+// working the instant a new one is issued). Several requests can land a
+// 401 at the same moment (e.g. every query a page fires on mount), and
+// without this dedup each one would call /auth/refresh independently with
+// the same now-shared token — the first call rotates it, then every other
+// call's refresh fails against the now-stale token and wipes out the
+// session `refreshAccessToken` just successfully set. Coalescing concurrent
+// callers onto a single in-flight request keeps that from happening.
+let pendingRefresh: ReturnType<typeof performTokenRefresh> | null = null;
+
+function refreshAccessToken() {
+  pendingRefresh ??= performTokenRefresh().finally(() => {
+    pendingRefresh = null;
+  });
+
+  return pendingRefresh;
+}
+
+async function performTokenRefresh() {
   const session = getAuthSession();
 
   if (!session?.refreshToken) {
