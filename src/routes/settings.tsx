@@ -83,6 +83,17 @@ const settingsSearchSchema = z.object({
 
 type SettingsSearch = z.infer<typeof settingsSearchSchema>;
 
+// The GitHub redirect back to the Setup URL only carries installation_id,
+// state, and setup_action — never organizationId — so the org selector
+// (which falls back to "first org in the list") can't be trusted to pick
+// the org the install was actually started for. The org id is embedded as
+// the first half of `state` (see the backend's StartInstallation, which
+// builds it as `${organizationId}:${issuedAtUnixTimestamp}`), so recover it
+// from there instead.
+export function parseOrganizationIdFromInstallationState(state: string | undefined): string | undefined {
+  return state?.split(":")[0] || undefined;
+}
+
 export const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/settings",
@@ -434,30 +445,49 @@ function SettingsPage() {
   useEffect(() => {
     const installationId = search.installation_id;
     const state = search.state;
+    const organizationIdFromState = parseOrganizationIdFromInstallationState(state);
 
     const nextCallbackKey =
-      selectedOrganizationId && installationId && state
-        ? `${selectedOrganizationId}:${installationId}:${state}:${search.setup_action ?? ""}`
+      organizationIdFromState && installationId && state
+        ? `${organizationIdFromState}:${installationId}:${state}:${search.setup_action ?? ""}`
         : null;
 
-    if (!nextCallbackKey || callbackKey === nextCallbackKey || !selectedOrganizationId || !installationId || !state) {
+    if (
+      !nextCallbackKey ||
+      callbackKey === nextCallbackKey ||
+      !organizationIdFromState ||
+      !installationId ||
+      !state
+    ) {
       return;
     }
 
-    completeInstallationMutation.mutate({
-      organizationId: selectedOrganizationId,
-      installationId,
-      state,
-      setupAction: search.setup_action,
-    });
+    completeInstallationMutation.mutate(
+      {
+        organizationId: organizationIdFromState,
+        installationId,
+        state,
+        setupAction: search.setup_action,
+      },
+      {
+        onSuccess: () => {
+          if (search.organizationId !== organizationIdFromState) {
+            void navigate({
+              search: (prev) => ({ ...prev, organizationId: organizationIdFromState, tab: "github" }),
+            });
+          }
+        },
+      },
+    );
     setCallbackKey(nextCallbackKey);
   }, [
     callbackKey,
     completeInstallationMutation,
+    navigate,
     search.installation_id,
+    search.organizationId,
     search.setup_action,
     search.state,
-    selectedOrganizationId,
   ]);
 
   const activeSyncJob = syncJobDetailQuery.data?.data;

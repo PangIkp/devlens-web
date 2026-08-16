@@ -1,6 +1,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderApp } from "@/test/render-app";
+import { parseOrganizationIdFromInstallationState } from "@/routes/settings";
 
 const organizationId = "11111111-1111-4111-8111-111111111111";
 const repositoryId = "22222222-2222-4222-8222-222222222222";
@@ -626,20 +627,21 @@ describe("settings route", () => {
     vi.stubGlobal("fetch", fetchStub);
 
     renderApp(
-      `/settings?organizationId=${organizationId}&installation_id=999&state=opaque-state-token&setup_action=install`,
+      `/settings?organizationId=${organizationId}&installation_id=999&state=${organizationId}%3A1700000000&setup_action=install`,
     );
 
     expect(await screen.findByText("GitHub connection")).toBeInTheDocument();
     expect(
       fetchStub.mock.calls.some(([input]) => {
         const url = String(input);
+        if (!url.includes(`/organizations/${organizationId}/github/installations/callback`)) {
+          return false;
+        }
+        const params = new URL(url, "http://localhost").searchParams;
         return (
-          url.includes(
-            `/organizations/${organizationId}/github/installations/callback`,
-          ) &&
-          url.includes("installation_id=999") &&
-          url.includes("state=opaque-state-token") &&
-          url.includes("setup_action=install")
+          params.get("installation_id") === "999" &&
+          params.get("state") === `${organizationId}:1700000000` &&
+          params.get("setup_action") === "install"
         );
       }),
     ).toBe(true);
@@ -667,7 +669,7 @@ describe("settings route", () => {
     const user = userEvent.setup();
 
     renderApp(
-      `/settings?organizationId=${organizationId}&installation_id=999&state=opaque-state-token&setup_action=install`,
+      `/settings?organizationId=${organizationId}&installation_id=999&state=${organizationId}%3A1700000000&setup_action=install`,
     );
 
     expect(
@@ -1215,5 +1217,28 @@ describe("settings route", () => {
 
     expect(await screen.findByText("Not Connected")).toBeInTheDocument();
     expect(screen.queryByText("connected-org/only-repo")).not.toBeInTheDocument();
+  });
+});
+
+describe("parseOrganizationIdFromInstallationState", () => {
+  it("recovers the organization id embedded before the colon", () => {
+    expect(parseOrganizationIdFromInstallationState(`${organizationId}:1700000000`)).toBe(organizationId);
+  });
+
+  it("returns undefined when state is missing", () => {
+    expect(parseOrganizationIdFromInstallationState(undefined)).toBeUndefined();
+  });
+
+  it("returns undefined when state is an empty string", () => {
+    expect(parseOrganizationIdFromInstallationState("")).toBeUndefined();
+  });
+
+  it("does not fall back to a locally-selected organization id that doesn't match the state", () => {
+    // This is the regression this function guards against: GitHub's
+    // redirect back to the Setup URL never includes organizationId, so a
+    // naive "use whichever org is selected in the UI" fallback can silently
+    // target the wrong organization when the user has more than one.
+    const otherOrgId = "99999999-9999-4999-8999-999999999999";
+    expect(parseOrganizationIdFromInstallationState(`${organizationId}:1700000000`)).not.toBe(otherOrgId);
   });
 });
