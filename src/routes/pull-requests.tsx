@@ -188,6 +188,7 @@ function PullRequestsPage() {
                     {repositories.map((repository) => (
                       <SelectItem key={repository.id} value={repository.id}>
                         {repository.fullName}
+                        {!repository.isActive ? " (inactive)" : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>

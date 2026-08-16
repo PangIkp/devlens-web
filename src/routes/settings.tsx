@@ -23,6 +23,7 @@ import {
   SuccessModal,
   type SuccessModalState,
 } from "@/components/shared/success-modal";
+import { ConfirmModal } from "@/components/shared/confirm-modal";
 import { OrganizationRetentionSettingsCard } from "@/components/settings/organization-retention-settings-card";
 import { OrganizationRuleSettingsCard } from "@/components/settings/organization-rule-settings-card";
 import { organizationSettingsKeys } from "@/features/organization-settings/organization-settings.query";
@@ -252,6 +253,10 @@ function SettingsPage() {
     () => managedRepositoriesQuery.data?.data ?? [],
     [managedRepositoriesQuery.data?.data],
   );
+  const managedRepositoriesByGithubId = useMemo(
+    () => new Map(managedRepositories.map((repository) => [repository.githubId, repository])),
+    [managedRepositories],
+  );
   const selectedRepositoryId =
     search.repositoryId ?? managedRepositories[0]?.id;
   const syncJobsQuery = useRepositorySyncJobsQuery(
@@ -294,8 +299,11 @@ function SettingsPage() {
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const [confirmDeleteOrganization, setConfirmDeleteOrganization] =
     useState(false);
-  const [confirmDeactivateRepository, setConfirmDeactivateRepository] =
-    useState(false);
+  const [confirmDeactivateAccessibleRepo, setConfirmDeactivateAccessibleRepo] =
+    useState<{ repositoryId: string; fullName: string } | null>(null);
+  const [confirmRemoveMember, setConfirmRemoveMember] = useState<
+    { memberId: string; userId: string } | null
+  >(null);
   const [createOrgDialogOpen, setCreateOrgDialogOpen] = useState(false);
   const [selectedAccessibleRepositoryIds, setSelectedAccessibleRepositoryIds] =
     useState<number[]>([]);
@@ -469,10 +477,13 @@ function SettingsPage() {
   const selectedRepositoryAccessUnavailable =
     selectedAccessibleRepository !== undefined &&
     selectedAccessibleRepository.installationStatus !== "accessible";
+  const selectedRepositoryDeactivated =
+    selectedManagedRepository !== undefined && !selectedManagedRepository.isActive;
   const syncActionReady =
     repositorySyncReady &&
     !selectedRepositoryNeedsOnboarding &&
     !selectedRepositoryAccessUnavailable &&
+    !selectedRepositoryDeactivated &&
     Boolean(selectedRepositoryId);
   const createSyncErrorCode = getApiErrorCode(createSyncMutation.error);
 
@@ -485,7 +496,13 @@ function SettingsPage() {
   useEffect(() => {
     createSyncMutation.reset();
     updateRepositoryMutation.reset();
-    setConfirmDeactivateRepository(false);
+    deleteMemberMutation.reset();
+    deleteOrganizationMutation.reset();
+    disconnectGitHubMutation.reset();
+    setConfirmDeactivateAccessibleRepo(null);
+    setConfirmRemoveMember(null);
+    setConfirmDeleteOrganization(false);
+    setConfirmDisconnect(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedOrganizationId, selectedRepositoryId]);
 
@@ -830,71 +847,16 @@ function SettingsPage() {
                               Save organization
                             </Button>
                             <div className="ml-auto flex flex-wrap items-center gap-3">
-                              {confirmDeleteOrganization ? (
-                                <>
-                                  <span className="text-sm text-rose-600 dark:text-rose-400">
-                                    Delete this organization? This can&apos;t be
-                                    undone.
-                                  </span>
-                                  <Button
-                                    type="button"
-                                    variant="danger"
-                                    disabled={
-                                      deleteOrganizationMutation.isPending
-                                    }
-                                    onClick={() =>
-                                      selectedOrganizationId &&
-                                      deleteOrganizationMutation.mutate(
-                                        selectedOrganizationId,
-                                        {
-                                          onSuccess: () => {
-                                            setConfirmDeleteOrganization(false);
-                                            setNewMemberUserId("");
-                                            setNewMemberRole("member");
-                                            setSelectedAccessibleRepositoryIds(
-                                              [],
-                                            );
-                                            notifySuccess(
-                                              "Organization deleted",
-                                            );
-                                            updateSearch({
-                                              organizationId: undefined,
-                                              repositoryId: undefined,
-                                              syncJobId: undefined,
-                                              accessiblePage: 1,
-                                              accessibleSearch: undefined,
-                                              syncPage: 1,
-                                            });
-                                          },
-                                        },
-                                      )
-                                    }
-                                  >
-                                    {deleteOrganizationMutation.isPending
-                                      ? "Deleting..."
-                                      : "Confirm delete"}
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() =>
-                                      setConfirmDeleteOrganization(false)
-                                    }
-                                  >
-                                    Cancel
-                                  </Button>
-                                </>
-                              ) : (
-                                <Button
-                                  type="button"
-                                  variant="danger-outline"
-                                  onClick={() =>
-                                    setConfirmDeleteOrganization(true)
-                                  }
-                                >
-                                  Delete organization
-                                </Button>
-                              )}
+                              <Button
+                                type="button"
+                                variant="danger-outline"
+                                onClick={() => {
+                                  deleteOrganizationMutation.reset();
+                                  setConfirmDeleteOrganization(true);
+                                }}
+                              >
+                                Delete organization
+                              </Button>
                             </div>
                           </div>
                         </div>
@@ -1038,62 +1000,16 @@ function SettingsPage() {
                               that purge reuses the existing data.
                             </p>
                           </div>
-                          {disconnectGitHubMutation.isError ? (
-                            <ErrorState
-                              title="Could not disconnect GitHub"
-                              message={getErrorMessage(
-                                disconnectGitHubMutation.error,
-                              )}
-                            />
-                          ) : null}
-                          {confirmDisconnect ? (
-                            <div className="flex flex-wrap items-center gap-3">
-                              <span className="text-sm text-rose-600 dark:text-rose-400">
-                                Are you sure? This can&apos;t be undone from the
-                                UI.
-                              </span>
-                              <Button
-                                type="button"
-                                variant="danger"
-                                disabled={disconnectGitHubMutation.isPending}
-                                onClick={() => {
-                                  if (selectedOrganizationId) {
-                                    disconnectGitHubMutation.mutate(
-                                      selectedOrganizationId,
-                                      {
-                                        onSuccess: () => {
-                                          setConfirmDisconnect(false);
-                                          notifySuccess(
-                                            "GitHub disconnected",
-                                            "Historical data is kept until the retention purge runs.",
-                                          );
-                                        },
-                                      },
-                                    );
-                                  }
-                                }}
-                              >
-                                {disconnectGitHubMutation.isPending
-                                  ? "Disconnecting..."
-                                  : "Confirm disconnect"}
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setConfirmDisconnect(false)}
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          ) : (
-                            <Button
-                              type="button"
-                              variant="danger-outline"
-                              onClick={() => setConfirmDisconnect(true)}
-                            >
-                              Disconnect GitHub
-                            </Button>
-                          )}
+                          <Button
+                            type="button"
+                            variant="danger-outline"
+                            onClick={() => {
+                              disconnectGitHubMutation.reset();
+                              setConfirmDisconnect(true);
+                            }}
+                          >
+                            Disconnect GitHub
+                          </Button>
                         </div>
                       ) : null}
                     </Card>
@@ -1159,7 +1075,12 @@ function SettingsPage() {
                       ) : null}
                       <div className="max-h-96 divide-y divide-border/60 overflow-y-auto rounded-xl border border-border/70">
                         {(accessibleRepositoriesQuery.data?.data ?? []).map(
-                          (repository) => (
+                          (repository) => {
+                            const managedMatch = managedRepositoriesByGithubId.get(
+                              String(repository.githubRepositoryId),
+                            );
+
+                            return (
                             <label
                               key={repository.githubRepositoryId}
                               className="flex items-start gap-3 p-4"
@@ -1189,6 +1110,34 @@ function SettingsPage() {
                                             ),
                                     )
                                   }
+                                />
+                              ) : managedMatch ? (
+                                <input
+                                  type="checkbox"
+                                  className="mt-1"
+                                  checked={managedMatch.isActive}
+                                  disabled={updateRepositoryMutation.isPending}
+                                  aria-label={`Connected: ${repository.fullName}`}
+                                  onChange={(event) => {
+                                    if (event.target.checked) {
+                                      updateRepositoryMutation.mutate(
+                                        { repositoryId: managedMatch.id, isActive: true },
+                                        {
+                                          onSuccess: () =>
+                                            notifySuccess(
+                                              "Repository reactivated",
+                                              "New GitHub activity for this repository will sync again.",
+                                            ),
+                                        },
+                                      );
+                                    } else {
+                                      updateRepositoryMutation.reset();
+                                      setConfirmDeactivateAccessibleRepo({
+                                        repositoryId: managedMatch.id,
+                                        fullName: repository.fullName,
+                                      });
+                                    }
+                                  }}
                                 />
                               ) : (
                                 <span
@@ -1228,7 +1177,8 @@ function SettingsPage() {
                                 ) : null}
                               </div>
                             </label>
-                          ),
+                            );
+                          },
                         )}
                       </div>
                       <div className="flex flex-wrap items-center gap-3">
@@ -1247,11 +1197,13 @@ function SettingsPage() {
                                 autoSync: true,
                               },
                               {
-                                onSuccess: () =>
+                                onSuccess: () => {
+                                  setSelectedAccessibleRepositoryIds([]);
                                   notifySuccess(
                                     "Repositories connected",
                                     "Selected repositories are queued for onboarding and sync.",
-                                  ),
+                                  );
+                                },
                               },
                             )
                           }
@@ -1445,6 +1397,7 @@ function SettingsPage() {
                             {managedRepositories.map((repository) => (
                               <SelectItem key={repository.id} value={repository.id}>
                                 {repository.fullName}
+                                {!repository.isActive ? " (inactive)" : ""}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -1502,96 +1455,6 @@ function SettingsPage() {
                         </Button>
                       </div>
 
-                      {selectedManagedRepository ? (
-                        <div className="flex flex-wrap items-center gap-3">
-                          <StatusPill
-                            label={selectedManagedRepository.isActive ? "active" : "inactive"}
-                            tone={selectedManagedRepository.isActive ? "success" : "neutral"}
-                          />
-                          <span className="text-sm text-muted-foreground">
-                            {selectedManagedRepository.isActive
-                              ? "New GitHub activity for this repository is being synced."
-                              : "This repository is deactivated. New GitHub activity is no longer synced, but existing data stays available everywhere."}
-                          </span>
-                        </div>
-                      ) : null}
-
-                      {updateRepositoryMutation.isError ? (
-                        <ErrorState
-                          title="Could not update repository"
-                          message={getErrorMessage(updateRepositoryMutation.error)}
-                        />
-                      ) : null}
-
-                      {selectedManagedRepository && !selectedManagedRepository.isActive ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={updateRepositoryMutation.isPending}
-                          onClick={() =>
-                            updateRepositoryMutation.mutate(
-                              { repositoryId: selectedManagedRepository.id, isActive: true },
-                              {
-                                onSuccess: () =>
-                                  notifySuccess(
-                                    "Repository reactivated",
-                                    "New GitHub activity for this repository will sync again.",
-                                  ),
-                              },
-                            )
-                          }
-                        >
-                          {updateRepositoryMutation.isPending ? "Reactivating..." : "Reactivate repository"}
-                        </Button>
-                      ) : null}
-
-                      {selectedManagedRepository && selectedManagedRepository.isActive ? (
-                        confirmDeactivateRepository ? (
-                          <div className="flex flex-wrap items-center gap-3">
-                            <span className="text-sm text-rose-600 dark:text-rose-400">
-                              Stop syncing this repository? Historical data stays available
-                              everywhere — you can reactivate anytime.
-                            </span>
-                            <Button
-                              type="button"
-                              variant="danger"
-                              disabled={updateRepositoryMutation.isPending}
-                              onClick={() =>
-                                updateRepositoryMutation.mutate(
-                                  { repositoryId: selectedManagedRepository.id, isActive: false },
-                                  {
-                                    onSuccess: () => {
-                                      setConfirmDeactivateRepository(false);
-                                      notifySuccess(
-                                        "Repository deactivated",
-                                        "New GitHub activity for this repository will no longer be synced.",
-                                      );
-                                    },
-                                  },
-                                )
-                              }
-                            >
-                              {updateRepositoryMutation.isPending ? "Deactivating..." : "Confirm deactivate"}
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => setConfirmDeactivateRepository(false)}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        ) : (
-                          <Button
-                            type="button"
-                            variant="danger-outline"
-                            onClick={() => setConfirmDeactivateRepository(true)}
-                          >
-                            Deactivate repository
-                          </Button>
-                        )
-                      ) : null}
-
                       {!repositorySyncReady ? (
                         <EmptyState
                           title="Repository sync is locked until onboarding is complete"
@@ -1628,6 +1491,38 @@ function SettingsPage() {
                               onClick={() => updateSearch({ tab: "github" })}
                             >
                               Review GitHub connection
+                            </Button>
+                          }
+                        />
+                      ) : null}
+
+                      {repositorySyncReady &&
+                      !selectedRepositoryNeedsOnboarding &&
+                      !selectedRepositoryAccessUnavailable &&
+                      selectedRepositoryDeactivated &&
+                      selectedManagedRepository ? (
+                        <EmptyState
+                          title="This repository is deactivated"
+                          description="New GitHub activity is no longer synced. Reactivate it from Accessible repositories before starting a sync."
+                          action={
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={updateRepositoryMutation.isPending}
+                              onClick={() =>
+                                updateRepositoryMutation.mutate(
+                                  { repositoryId: selectedManagedRepository.id, isActive: true },
+                                  {
+                                    onSuccess: () =>
+                                      notifySuccess(
+                                        "Repository reactivated",
+                                        "New GitHub activity for this repository will sync again.",
+                                      ),
+                                  },
+                                )
+                              }
+                            >
+                              {updateRepositoryMutation.isPending ? "Reactivating..." : "Reactivate repository"}
                             </Button>
                           }
                         />
@@ -1681,9 +1576,17 @@ function SettingsPage() {
                       ) : null}
 
                       {createSyncMutation.isError &&
+                      createSyncErrorCode === "REPOSITORY_DEACTIVATED" ? (
+                        <EmptyState
+                          title="This repository is deactivated"
+                          description={getErrorMessage(createSyncMutation.error)}
+                        />
+                      ) : null}
+
+                      {createSyncMutation.isError &&
                       createSyncErrorCode !== "GITHUB_INSTALLATION_REQUIRED" &&
-                      createSyncErrorCode !==
-                        "REPOSITORY_ONBOARDING_REQUIRED" ? (
+                      createSyncErrorCode !== "REPOSITORY_ONBOARDING_REQUIRED" &&
+                      createSyncErrorCode !== "REPOSITORY_DEACTIVATED" ? (
                         <ErrorState
                           title="Could not start repository sync"
                           message={getErrorMessage(createSyncMutation.error)}
@@ -1792,12 +1695,6 @@ function SettingsPage() {
                           message={getErrorMessage(updateMemberMutation.error)}
                         />
                       ) : null}
-                      {deleteMemberMutation.isError ? (
-                        <ErrorState
-                          title="Could not remove member"
-                          message={getErrorMessage(deleteMemberMutation.error)}
-                        />
-                      ) : null}
                       {createMemberMutation.isError ? (
                         <ErrorState
                           title="Could not add member"
@@ -1866,19 +1763,13 @@ function SettingsPage() {
                                 variant="danger-outline"
                                 aria-label={`Remove member ${member.userId}`}
                                 disabled={deleteMemberMutation.isPending}
-                                onClick={() =>
-                                  selectedOrganizationId &&
-                                  deleteMemberMutation.mutate(
-                                    {
-                                      organizationId: selectedOrganizationId,
-                                      memberId: member.id,
-                                    },
-                                    {
-                                      onSuccess: () =>
-                                        notifySuccess("Member removed"),
-                                    },
-                                  )
-                                }
+                                onClick={() => {
+                                  deleteMemberMutation.reset();
+                                  setConfirmRemoveMember({
+                                    memberId: member.id,
+                                    userId: member.userId,
+                                  });
+                                }}
                               >
                                 Remove
                               </Button>
@@ -1955,8 +1846,11 @@ function SettingsPage() {
                                   },
                                 },
                                 {
-                                  onSuccess: () =>
-                                    notifySuccess("Member added"),
+                                  onSuccess: () => {
+                                    setNewMemberUserId("");
+                                    setNewMemberRole("member");
+                                    notifySuccess("Member added");
+                                  },
                                 },
                               )
                             }
@@ -1989,6 +1883,132 @@ function SettingsPage() {
       <SuccessModal
         state={successModal}
         onOpenChange={(open) => !open && setSuccessModal(null)}
+      />
+      <ConfirmModal
+        state={
+          confirmDeactivateAccessibleRepo
+            ? {
+                title: `Deactivate ${confirmDeactivateAccessibleRepo.fullName}?`,
+                description:
+                  "New GitHub activity for this repository will no longer be synced. Historical data stays available everywhere — you can reactivate anytime.",
+                errorMessage: updateRepositoryMutation.isError
+                  ? getErrorMessage(updateRepositoryMutation.error)
+                  : undefined,
+                confirmLabel: "Deactivate",
+                pending: updateRepositoryMutation.isPending,
+                onConfirm: () =>
+                  updateRepositoryMutation.mutate(
+                    {
+                      repositoryId: confirmDeactivateAccessibleRepo.repositoryId,
+                      isActive: false,
+                    },
+                    {
+                      onSuccess: () => {
+                        setConfirmDeactivateAccessibleRepo(null);
+                        notifySuccess(
+                          "Repository deactivated",
+                          "New GitHub activity for this repository will no longer be synced.",
+                        );
+                      },
+                    },
+                  ),
+              }
+            : null
+        }
+        onOpenChange={(open) => !open && setConfirmDeactivateAccessibleRepo(null)}
+      />
+      <ConfirmModal
+        state={
+          confirmRemoveMember
+            ? {
+                title: `Remove ${confirmRemoveMember.userId}?`,
+                description:
+                  "They will immediately lose access to this organization. You can add them back later.",
+                errorMessage: deleteMemberMutation.isError
+                  ? getErrorMessage(deleteMemberMutation.error)
+                  : undefined,
+                confirmLabel: "Remove",
+                pending: deleteMemberMutation.isPending,
+                onConfirm: () =>
+                  selectedOrganizationId &&
+                  deleteMemberMutation.mutate(
+                    {
+                      organizationId: selectedOrganizationId,
+                      memberId: confirmRemoveMember.memberId,
+                    },
+                    {
+                      onSuccess: () => {
+                        setConfirmRemoveMember(null);
+                        notifySuccess("Member removed");
+                      },
+                    },
+                  ),
+              }
+            : null
+        }
+        onOpenChange={(open) => !open && setConfirmRemoveMember(null)}
+      />
+      <ConfirmModal
+        state={
+          confirmDeleteOrganization
+            ? {
+                title: "Delete this organization?",
+                description: "This can't be undone.",
+                errorMessage: deleteOrganizationMutation.isError
+                  ? getErrorMessage(deleteOrganizationMutation.error)
+                  : undefined,
+                confirmLabel: "Delete",
+                pending: deleteOrganizationMutation.isPending,
+                onConfirm: () =>
+                  selectedOrganizationId &&
+                  deleteOrganizationMutation.mutate(selectedOrganizationId, {
+                    onSuccess: () => {
+                      setConfirmDeleteOrganization(false);
+                      setNewMemberUserId("");
+                      setNewMemberRole("member");
+                      setSelectedAccessibleRepositoryIds([]);
+                      notifySuccess("Organization deleted");
+                      updateSearch({
+                        organizationId: undefined,
+                        repositoryId: undefined,
+                        syncJobId: undefined,
+                        accessiblePage: 1,
+                        accessibleSearch: undefined,
+                        syncPage: 1,
+                      });
+                    },
+                  }),
+              }
+            : null
+        }
+        onOpenChange={(open) => !open && setConfirmDeleteOrganization(false)}
+      />
+      <ConfirmModal
+        state={
+          confirmDisconnect
+            ? {
+                title: "Disconnect GitHub?",
+                description: "Are you sure? This can't be undone from the UI.",
+                errorMessage: disconnectGitHubMutation.isError
+                  ? getErrorMessage(disconnectGitHubMutation.error)
+                  : undefined,
+                confirmLabel: "Disconnect",
+                pending: disconnectGitHubMutation.isPending,
+                onConfirm: () =>
+                  selectedOrganizationId &&
+                  disconnectGitHubMutation.mutate(selectedOrganizationId, {
+                    onSuccess: () => {
+                      setConfirmDisconnect(false);
+                      notifySuccess(
+                        "GitHub disconnected",
+                        "Historical data is kept until the retention purge runs.",
+                      );
+                    },
+                  }),
+              }
+            : null
+        }
+        onOpenChange={(open) => !open && setConfirmDisconnect(false)}
       />
       <Dialog open={createOrgDialogOpen} onOpenChange={setCreateOrgDialogOpen}>
         <DialogContent>

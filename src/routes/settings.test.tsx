@@ -77,9 +77,10 @@ function createSettingsFetchStub(options?: {
   createSyncResponse?: { status: number; body: unknown };
   callbackStatus?: number;
   accessibleTwoPages?: boolean;
+  repositoryIsActive?: boolean;
 }) {
   let organizationDeleted = false;
-  let repositoryIsActive = true;
+  let repositoryIsActive = options?.repositoryIsActive ?? true;
 
   return vi
     .fn()
@@ -335,7 +336,7 @@ function createSettingsFetchStub(options?: {
         url.pathname === `/api/v1/repositories/${repositoryId}` &&
         method === "PATCH"
       ) {
-        const body = init?.body ? (JSON.parse(String(init.body)) as { isActive?: boolean }) : {};
+        const body = init?.body ? (JSON.parse(init.body as string) as { isActive?: boolean }) : {};
         if (typeof body.isActive === "boolean") {
           repositoryIsActive = body.isActive;
         }
@@ -478,6 +479,14 @@ function createSettingsFetchStub(options?: {
 
       if (
         url.pathname ===
+          `/api/v1/organizations/${organizationId}/members/${memberId}` &&
+        method === "DELETE"
+      ) {
+        return Promise.resolve(jsonResponse(204, {}));
+      }
+
+      if (
+        url.pathname ===
           `/api/v1/organizations/${organizationId}/github/connection` &&
         method === "DELETE"
       ) {
@@ -573,7 +582,7 @@ describe("settings route", () => {
     ).toBe(true);
   }, 15000);
 
-  it("does not show a checkbox for an already-connected accessible repository", async () => {
+  it("deactivates an already-connected accessible repository after confirming", async () => {
     const fetchStub = createSettingsFetchStub({
       accessibleSelectionStatus: "selected",
     });
@@ -584,7 +593,32 @@ describe("settings route", () => {
 
     await user.click(await screen.findByRole("tab", { name: "GitHub" }));
     expect(await screen.findByText("devlens-labs/devlens-api")).toBeInTheDocument();
-    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+
+    const checkbox = screen.getByRole("checkbox", {
+      name: "Connected: devlens-labs/devlens-api",
+    });
+    expect(checkbox).toBeChecked();
+
+    await user.click(checkbox);
+    expect(
+      await screen.findByText("Deactivate devlens-labs/devlens-api?"),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Deactivate" }));
+    expect(await screen.findByText("Repository deactivated")).toBeInTheDocument();
+
+    const patchCall = fetchStub.mock.calls.find(([input], index) => {
+      const init = fetchStub.mock.calls[index][1] as RequestInit | undefined;
+      return (
+        String(input).endsWith(`/repositories/${repositoryId}`) &&
+        init?.method === "PATCH"
+      );
+    });
+    expect(patchCall).toBeDefined();
+    const body = JSON.parse(
+      (patchCall?.[1] as RequestInit).body as string,
+    ) as { isActive: boolean };
+    expect(body).toEqual({ isActive: false });
   });
 
   it("handles installation callback search params, including the required state token", async () => {
@@ -676,8 +710,9 @@ describe("settings route", () => {
       }),
     ).toBe(false);
 
+    expect(await screen.findByText("Disconnect GitHub?")).toBeInTheDocument();
     await user.click(
-      screen.getByRole("button", { name: "Confirm disconnect" }),
+      screen.getByRole("button", { name: "Disconnect" }),
     );
 
     expect(
@@ -758,7 +793,10 @@ describe("settings route", () => {
       }),
     ).toBe(false);
 
-    await user.click(screen.getByRole("button", { name: "Confirm delete" }));
+    expect(
+      await screen.findByText("Delete this organization?"),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Delete" }));
 
     expect(await screen.findByText("Organization deleted")).toBeInTheDocument();
     expect(
@@ -904,41 +942,6 @@ describe("settings route", () => {
     expect(body.repositoryIds).toEqual([2001]);
   });
 
-  it("deactivates a managed repository after a confirmation step", async () => {
-    const fetchStub = createSettingsFetchStub();
-    vi.stubGlobal("fetch", fetchStub);
-    const user = userEvent.setup();
-
-    renderApp("/settings");
-
-    await user.click(await screen.findByRole("tab", { name: "Sync" }));
-    expect(await screen.findByText("Managed repository sync")).toBeInTheDocument();
-    expect(screen.getByText("Active")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Deactivate repository" }));
-    await user.click(screen.getByRole("button", { name: "Confirm deactivate" }));
-
-    expect(await screen.findByText("Repository deactivated")).toBeInTheDocument();
-    await user.keyboard("{Escape}");
-    expect(await screen.findByText("Inactive")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Reactivate repository" }),
-    ).toBeInTheDocument();
-
-    const patchCall = fetchStub.mock.calls.find(([input], index) => {
-      const init = fetchStub.mock.calls[index][1] as RequestInit | undefined;
-      return (
-        String(input).endsWith(`/repositories/${repositoryId}`) &&
-        init?.method === "PATCH"
-      );
-    });
-    expect(patchCall).toBeDefined();
-    const body = JSON.parse(
-      (patchCall?.[1] as RequestInit).body as string,
-    ) as { isActive: boolean };
-    expect(body).toEqual({ isActive: false });
-  });
-
   it("blocks sync when repository onboarding is incomplete", async () => {
     const fetchStub = createSettingsFetchStub({
       accessibleSelectionStatus: "not_selected",
@@ -982,6 +985,75 @@ describe("settings route", () => {
         );
       }),
     ).toBe(false);
+  });
+
+  it("blocks sync and offers reactivation when the selected repository is deactivated", async () => {
+    const fetchStub = createSettingsFetchStub({ repositoryIsActive: false });
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+
+    renderApp("/settings");
+
+    await user.click(await screen.findByRole("tab", { name: "Sync" }));
+    expect(await screen.findByText("Managed repository sync")).toBeInTheDocument();
+    expect(await screen.findByText("This repository is deactivated")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Start incremental sync" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Start full sync" }),
+    ).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Reactivate repository" }));
+    expect(await screen.findByText("Repository reactivated")).toBeInTheDocument();
+
+    const patchCall = fetchStub.mock.calls.find(([input], index) => {
+      const init = fetchStub.mock.calls[index][1] as RequestInit | undefined;
+      return (
+        String(input).endsWith(`/repositories/${repositoryId}`) &&
+        init?.method === "PATCH"
+      );
+    });
+    expect(patchCall).toBeDefined();
+    const body = JSON.parse(
+      (patchCall?.[1] as RequestInit).body as string,
+    ) as { isActive: boolean };
+    expect(body).toEqual({ isActive: true });
+  });
+
+  it("removes a member only after confirming", async () => {
+    const fetchStub = createSettingsFetchStub();
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+
+    renderApp("/settings");
+
+    await user.click(await screen.findByRole("tab", { name: "Members" }));
+    expect(await screen.findByText("Organization members")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: `Remove member ${userId}` }));
+    expect(await screen.findByText(`Remove ${userId}?`)).toBeInTheDocument();
+
+    const deleteCallsBeforeConfirm = fetchStub.mock.calls.filter(([input], index) => {
+      const init = fetchStub.mock.calls[index][1] as RequestInit | undefined;
+      return (
+        String(input).endsWith(`/members/${memberId}`) &&
+        init?.method === "DELETE"
+      );
+    });
+    expect(deleteCallsBeforeConfirm).toHaveLength(0);
+
+    await user.click(screen.getByRole("button", { name: "Remove" }));
+    expect(await screen.findByText("Member removed")).toBeInTheDocument();
+
+    const deleteCallsAfterConfirm = fetchStub.mock.calls.filter(([input], index) => {
+      const init = fetchStub.mock.calls[index][1] as RequestInit | undefined;
+      return (
+        String(input).endsWith(`/members/${memberId}`) &&
+        init?.method === "DELETE"
+      );
+    });
+    expect(deleteCallsAfterConfirm).toHaveLength(1);
   });
 
   it("marks the member UUID field as required and keeps Add member disabled until it is valid", async () => {

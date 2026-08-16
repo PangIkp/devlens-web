@@ -209,6 +209,7 @@ function InsightsPage() {
                     {(repositoriesQuery.data?.data ?? []).map((repository) => (
                       <SelectItem key={repository.id} value={repository.id}>
                         {repository.fullName}
+                        {!repository.isActive ? " (inactive)" : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>

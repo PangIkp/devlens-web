@@ -395,6 +395,7 @@ function DashboardPage() {
                     {repositories.map((repository) => (
                       <SelectItem key={repository.id} value={repository.id}>
                         {repository.fullName}
+                        {!repository.isActive ? " (inactive)" : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -461,7 +462,7 @@ function DashboardPage() {
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto">
+          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pt-6">
           {organizationsQuery.isError ? (
             <ErrorState
               title="Could not load organizations"
@@ -494,6 +495,20 @@ function DashboardPage() {
 
           {selectedRepositoryId ? (
             <div className="space-y-8">
+              {selectedRepository && !selectedRepository.isActive ? (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                  <span>
+                    This repository is deactivated — new GitHub activity is no longer synced. The data below reflects
+                    activity up to the last sync.
+                  </span>
+                  <Button asChild variant="outline" size="sm">
+                    <Link to="/settings" search={{ tab: "sync" }}>
+                      Reactivate in Settings
+                    </Link>
+                  </Button>
+                </div>
+              ) : null}
+
               {!repositoryMetricsReady ? (
                 <EmptyState
                   title="Repository data is not ready yet"
