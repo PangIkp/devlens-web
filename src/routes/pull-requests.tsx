@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { createRoute, Link } from "@tanstack/react-router";
+import { createRoute, Link, type SearchSchemaInput } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { z } from "zod";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -27,10 +27,12 @@ const pullRequestsSearchSchema = z.object({
   page: z.number().int().min(1).catch(1).default(1),
 });
 
+type PullRequestsSearch = z.infer<typeof pullRequestsSearchSchema>;
+
 export const pullRequestsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/pull-requests",
-  validateSearch: (search) =>
+  validateSearch: (search: Partial<PullRequestsSearch> & SearchSchemaInput): PullRequestsSearch =>
     pullRequestsSearchSchema.parse({
       organizationId: typeof search.organizationId === "string" ? search.organizationId : undefined,
       repositoryId: typeof search.repositoryId === "string" ? search.repositoryId : undefined,

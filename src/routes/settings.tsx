@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { createRoute } from "@tanstack/react-router";
+import { createRoute, type SearchSchemaInput } from "@tanstack/react-router";
 import { Check, ChevronLeft, ChevronRight, Plus, Search, X } from "lucide-react";
 import { z } from "zod";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -81,10 +81,12 @@ const settingsSearchSchema = z.object({
   tab: z.enum(settingsTabs).optional().catch(undefined),
 });
 
+type SettingsSearch = z.infer<typeof settingsSearchSchema>;
+
 export const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/settings",
-  validateSearch: (search) =>
+  validateSearch: (search: Partial<SettingsSearch> & SearchSchemaInput): SettingsSearch =>
     settingsSearchSchema.parse({
       organizationId:
         typeof search.organizationId === "string"
@@ -430,19 +432,22 @@ function SettingsPage() {
   }, [organizationMembersQuery.data]);
 
   useEffect(() => {
+    const installationId = search.installation_id;
+    const state = search.state;
+
     const nextCallbackKey =
-      selectedOrganizationId && search.installation_id && search.state
-        ? `${selectedOrganizationId}:${search.installation_id}:${search.state}:${search.setup_action ?? ""}`
+      selectedOrganizationId && installationId && state
+        ? `${selectedOrganizationId}:${installationId}:${state}:${search.setup_action ?? ""}`
         : null;
 
-    if (!nextCallbackKey || callbackKey === nextCallbackKey) {
+    if (!nextCallbackKey || callbackKey === nextCallbackKey || !selectedOrganizationId || !installationId || !state) {
       return;
     }
 
     completeInstallationMutation.mutate({
       organizationId: selectedOrganizationId,
-      installationId: search.installation_id,
-      state: search.state,
+      installationId,
+      state,
       setupAction: search.setup_action,
     });
     setCallbackKey(nextCallbackKey);

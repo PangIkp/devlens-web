@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { createRoute, Link } from "@tanstack/react-router";
+import { createRoute, Link, type SearchSchemaInput } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { z } from "zod";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -50,10 +50,12 @@ const insightsSearchSchema = z.object({
   page: z.number().int().min(1).catch(1).default(1),
 });
 
+type InsightsSearch = z.infer<typeof insightsSearchSchema>;
+
 export const insightsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/insights",
-  validateSearch: (search) =>
+  validateSearch: (search: Partial<InsightsSearch> & SearchSchemaInput): InsightsSearch =>
     insightsSearchSchema.parse({
       organizationId: typeof search.organizationId === "string" ? search.organizationId : undefined,
       repositoryId: typeof search.repositoryId === "string" ? search.repositoryId : undefined,

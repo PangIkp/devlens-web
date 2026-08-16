@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { createRoute, Link } from "@tanstack/react-router";
+import { createRoute, Link, type SearchSchemaInput } from "@tanstack/react-router";
 import {
   ChevronLeft,
   ChevronRight,
@@ -18,8 +18,11 @@ import { PageShell } from "@/components/layout/page-shell";
 import { Card } from "@/components/ui/card";
 import { DashboardSummaryGrid } from "@/components/dashboard/dashboard-summary-grid";
 import { DashboardHotspotsTable } from "@/components/dashboard/dashboard-hotspots-table";
+import { DashboardHotspotsTableSkeleton } from "@/components/dashboard/dashboard-hotspots-table-skeleton";
 import { DashboardReviewQueueTable } from "@/components/dashboard/dashboard-review-queue-table";
+import { DashboardReviewQueueTableSkeleton } from "@/components/dashboard/dashboard-review-queue-table-skeleton";
 import { DashboardWorkloadDistribution } from "@/components/dashboard/dashboard-workload-distribution";
+import { DashboardWorkloadDistributionSkeleton } from "@/components/dashboard/dashboard-workload-distribution-skeleton";
 import { EChartPanel } from "@/components/charts/echart-panel";
 import { EmptyState, ErrorState } from "@/components/shared/query-state";
 import { Button } from "@/components/ui/button";
@@ -66,10 +69,12 @@ const dashboardSearchSchema = z
     path: ["from"],
   });
 
+type DashboardSearch = z.infer<typeof dashboardSearchSchema>;
+
 export const dashboardRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/dashboard",
-  validateSearch: (search) =>
+  validateSearch: (search: Partial<DashboardSearch> & SearchSchemaInput): DashboardSearch =>
     dashboardSearchSchema.parse({
       organizationId: typeof search.organizationId === "string" ? search.organizationId : undefined,
       repositoryId: typeof search.repositoryId === "string" ? search.repositoryId : undefined,
@@ -710,6 +715,8 @@ function DashboardPage() {
                       description="Ranked files with the highest change volume and churn pressure."
                     />
 
+                    {hotspotsQuery.isLoading ? <DashboardHotspotsTableSkeleton /> : null}
+
                     {hotspotsQuery.isError ? (
                       <ErrorState
                         title="Could not load hotspot files"
@@ -763,6 +770,8 @@ function DashboardPage() {
                       title="Review queue"
                       description="Open pull requests currently waiting for their first review response."
                     />
+
+                    {reviewQueueQuery.isLoading ? <DashboardReviewQueueTableSkeleton /> : null}
 
                     {reviewQueueQuery.isError ? (
                       <ErrorState
@@ -822,6 +831,8 @@ function DashboardPage() {
                     title="Workload distribution"
                     description="How pull requests and reviews are distributed across the team for the selected range."
                   />
+
+                  {workloadDistributionQuery.isLoading ? <DashboardWorkloadDistributionSkeleton /> : null}
 
                   {workloadDistributionQuery.isError ? (
                     <ErrorState

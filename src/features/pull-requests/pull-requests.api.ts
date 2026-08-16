@@ -50,8 +50,10 @@ export async function listPullRequests(params: {
     return parsed.data;
   }
 
+  const fallback = response as { data: unknown[]; pagination?: unknown; meta?: unknown };
+
   return pullRequestListResponseSchema.parse({
-    data: (response as { data: unknown[] }).data,
-    pagination: (response as { pagination?: unknown; meta?: unknown }).pagination ?? (response as { meta: unknown }).meta,
+    data: fallback.data,
+    pagination: fallback.pagination ?? fallback.meta,
   });
 }

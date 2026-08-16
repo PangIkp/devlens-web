@@ -62,7 +62,7 @@ export function inferMetricsInterval(from: string, to: string) {
 }
 
 export function createLineSeriesData(points: Array<{ date: string; value: number }>) {
-  return points.map((point) => [point.date, point.value] as const);
+  return points.map((point) => [point.date, point.value] as [string, number]);
 }
 
 export function alignComparisonSeries(

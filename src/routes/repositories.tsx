@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { createRoute } from "@tanstack/react-router";
+import { createRoute, type SearchSchemaInput } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { z } from "zod";
 import { rootRoute } from "@/routes/root";
@@ -24,10 +24,12 @@ const repositoriesSearchSchema = z.object({
   status: z.enum(["active", "inactive", "archived"]).optional(),
 });
 
+type RepositoriesSearch = z.infer<typeof repositoriesSearchSchema>;
+
 export const repositoriesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/repositories",
-  validateSearch: (search) =>
+  validateSearch: (search: Partial<RepositoriesSearch> & SearchSchemaInput): RepositoriesSearch =>
     repositoriesSearchSchema.parse({
       organizationId: typeof search.organizationId === "string" ? search.organizationId : undefined,
       page:
