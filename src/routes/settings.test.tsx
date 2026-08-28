@@ -79,9 +79,12 @@ function createSettingsFetchStub(options?: {
   callbackStatus?: number;
   accessibleTwoPages?: boolean;
   repositoryIsActive?: boolean;
+  keepStaleConnectedRepositoryCount?: boolean;
 }) {
   let organizationDeleted = false;
   let repositoryIsActive = options?.repositoryIsActive ?? true;
+  let connectedRepositories = repositoryIsActive ? 1 : 0;
+  let accessibleSelectionStatus = options?.accessibleSelectionStatus ?? "selected";
 
   return vi
     .fn()
@@ -178,7 +181,7 @@ function createSettingsFetchStub(options?: {
               organizationId,
               provider: "github",
               state: options?.connectionState ?? "connected",
-              connectedRepositories: 1,
+              connectedRepositories,
               accountLogin: "devlens-labs",
               lastSyncedAt: "2026-08-12T00:00:00Z",
             },
@@ -221,7 +224,7 @@ function createSettingsFetchStub(options?: {
               organizationId,
               provider: "github",
               state: "connected",
-              connectedRepositories: 1,
+              connectedRepositories,
             },
           }),
         );
@@ -278,8 +281,7 @@ function createSettingsFetchStub(options?: {
                 defaultBranch: "main",
                 installationStatus:
                   options?.accessibleInstallationStatus ?? "accessible",
-                selectionStatus:
-                  options?.accessibleSelectionStatus ?? "selected",
+                selectionStatus: accessibleSelectionStatus,
               },
             ],
             pagination: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
@@ -291,6 +293,8 @@ function createSettingsFetchStub(options?: {
         url.pathname ===
         `/api/v1/organizations/${organizationId}/github/repositories/select`
       ) {
+        accessibleSelectionStatus = "selected";
+        connectedRepositories += 1;
         return Promise.resolve(
           jsonResponse(202, {
             data: {
@@ -340,6 +344,9 @@ function createSettingsFetchStub(options?: {
         const body = init?.body ? (JSON.parse(init.body as string) as { isActive?: boolean }) : {};
         if (typeof body.isActive === "boolean") {
           repositoryIsActive = body.isActive;
+          if (!options?.keepStaleConnectedRepositoryCount) {
+            connectedRepositories = repositoryIsActive ? 1 : 0;
+          }
         }
         return Promise.resolve(
           jsonResponse(200, {
@@ -608,6 +615,7 @@ describe("settings route", () => {
     ).toBeInTheDocument();
 
     await user.click(checkbox);
+    await waitFor(() => expect(checkbox).not.toBeChecked());
     expect(
       await screen.findByText("Deactivate devlens-labs/devlens-api?"),
     ).toBeInTheDocument();
@@ -615,6 +623,7 @@ describe("settings route", () => {
     await user.click(screen.getByRole("button", { name: "Deactivate" }));
     expect(await screen.findByText("Repository deactivated")).toBeInTheDocument();
     await waitFor(() => expect(checkbox).not.toBeChecked());
+    await waitFor(() => expect(screen.getByText("0")).toBeInTheDocument());
 
     const patchCall = fetchStub.mock.calls.find(([input], index) => {
       const init = fetchStub.mock.calls[index][1] as RequestInit | undefined;
@@ -628,6 +637,53 @@ describe("settings route", () => {
       (patchCall?.[1] as RequestInit).body as string,
     ) as { isActive: boolean };
     expect(body).toEqual({ isActive: false });
+  });
+
+  it("restores the checkbox if deactivation is canceled", async () => {
+    const fetchStub = createSettingsFetchStub({
+      accessibleSelectionStatus: "selected",
+    });
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+
+    renderApp("/settings?tab=github");
+
+    const checkbox = await screen.findByRole("checkbox", {
+      name: "Connected: devlens-labs/devlens-api",
+    });
+    expect(checkbox).toBeChecked();
+
+    await user.click(checkbox);
+    await waitFor(() => expect(checkbox).not.toBeChecked());
+    expect(
+      await screen.findByText("Deactivate devlens-labs/devlens-api?"),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(checkbox).toBeChecked());
+  });
+
+  it("keeps the connected repositories count updated after deactivation even if an immediate refetch would still return the stale backend value", async () => {
+    const fetchStub = createSettingsFetchStub({
+      accessibleSelectionStatus: "selected",
+      keepStaleConnectedRepositoryCount: true,
+    });
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+
+    renderApp("/settings?tab=github");
+
+    expect(await screen.findByText("Connected repositories")).toBeInTheDocument();
+    expect(screen.getByText("1")).toBeInTheDocument();
+
+    const checkbox = screen.getByRole("checkbox", {
+      name: "Connected: devlens-labs/devlens-api",
+    });
+    await user.click(checkbox);
+    await user.click(await screen.findByRole("button", { name: "Deactivate" }));
+
+    expect(await screen.findByText("Repository deactivated")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("0")).toBeInTheDocument());
   });
 
   it("reactivates an inactive accessible repository immediately in the current view", async () => {
@@ -655,6 +711,7 @@ describe("settings route", () => {
     await user.click(checkbox);
     expect(await screen.findByText("Repository reactivated")).toBeInTheDocument();
     await waitFor(() => expect(checkbox).toBeChecked());
+    await waitFor(() => expect(screen.getByText("1")).toBeInTheDocument());
 
     const patchCall = fetchStub.mock.calls.find(([input], index) => {
       const init = fetchStub.mock.calls[index][1] as RequestInit | undefined;
@@ -668,6 +725,26 @@ describe("settings route", () => {
       (patchCall?.[1] as RequestInit).body as string,
     ) as { isActive: boolean };
     expect(body).toEqual({ isActive: true });
+  });
+
+  it("updates the connected repositories count immediately after connecting a repository", async () => {
+    const fetchStub = createSettingsFetchStub({
+      accessibleSelectionStatus: "not_selected",
+      repositoryIsActive: false,
+    });
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+
+    renderApp("/settings?tab=github");
+
+    expect(await screen.findByText("Connected repositories")).toBeInTheDocument();
+    expect(screen.getByText("0")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: "Connect selected repositories" }));
+
+    expect(await screen.findByText("Repositories connected")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("1")).toBeInTheDocument());
   });
 
   it("handles installation callback search params, including the required state token", async () => {

@@ -37,6 +37,7 @@ import {
   useGitHubConnectionQuery,
   useSelectAccessibleGitHubRepositoriesMutation,
   useStartGitHubInstallationMutation,
+  githubKeys,
 } from "@/features/github/github.query";
 import {
   useCreateOrganizationMemberMutation,
@@ -357,7 +358,13 @@ function SettingsPage() {
   const [confirmDeleteOrganization, setConfirmDeleteOrganization] =
     useState(false);
   const [confirmDeactivateAccessibleRepo, setConfirmDeactivateAccessibleRepo] =
-    useState<{ repositoryId: string; fullName: string } | null>(null);
+    useState<{
+      repositoryId: string;
+      fullName: string;
+      connectedRepositoriesDelta: number;
+    } | null>(null);
+  const [managedRepositoryCheckedOverrides, setManagedRepositoryCheckedOverrides] =
+    useState<Record<string, boolean | undefined>>({});
   const [confirmRemoveMember, setConfirmRemoveMember] = useState<
     { memberId: string; userId: string } | null
   >(null);
@@ -381,9 +388,51 @@ function SettingsPage() {
     "owner" | "admin" | "member"
   >("member");
   const [successModal, setSuccessModal] = useState<SuccessModalState>(null);
+  const [connectedRepositoriesOverride, setConnectedRepositoriesOverride] =
+    useState<number | null>(null);
 
   function notifySuccess(title: string, message?: string) {
     setSuccessModal({ title, message });
+  }
+
+  function patchConnectedRepositories(delta: number, nextState?: string) {
+    const currentConnectedRepositories =
+      connectedRepositoriesOverride ??
+      githubConnectionQuery.data?.data.connectedRepositories ??
+      0;
+
+    if (!selectedOrganizationId || (delta === 0 && !nextState)) {
+      return;
+    }
+
+    setConnectedRepositoriesOverride(
+      Math.max(currentConnectedRepositories + delta, 0),
+    );
+
+    queryClient.setQueryData(githubKeys.connection(selectedOrganizationId), (current: unknown) => {
+      if (!current || typeof current !== "object" || !("data" in current)) {
+        return current;
+      }
+
+      const response = current as {
+        data: {
+          state?: string;
+          connectedRepositories?: number;
+        };
+      };
+
+      return {
+        ...response,
+        data: {
+          ...response.data,
+          state: nextState ?? response.data.state,
+          connectedRepositories: Math.max(
+            (response.data.connectedRepositories ?? 0) + delta,
+            0,
+          ),
+        },
+      };
+    });
   }
 
   const createOrganizationValidation = useFieldValidation(
@@ -573,6 +622,10 @@ function SettingsPage() {
     isPending: createSyncMutation.isPending,
   });
   const createSyncErrorCode = getApiErrorCode(createSyncMutation.error);
+  const connectedRepositoriesCount =
+    connectedRepositoriesOverride ??
+    githubConnectionQuery.data?.data.connectedRepositories ??
+    0;
   const githubOwnershipConflictError = getGitHubOwnershipConflictError([
     startInstallationMutation.error,
     completeInstallationMutation.error,
@@ -595,6 +648,8 @@ function SettingsPage() {
     setConfirmRemoveMember(null);
     setConfirmDeleteOrganization(false);
     setConfirmDisconnect(false);
+    setConnectedRepositoriesOverride(null);
+    setManagedRepositoryCheckedOverrides({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedOrganizationId, selectedRepositoryId]);
 
@@ -997,8 +1052,7 @@ function SettingsPage() {
                                 Connected repositories
                               </p>
                               <p className="mt-2 text-2xl font-semibold">
-                                {githubConnectionQuery.data.data
-                                  .connectedRepositories ?? 0}
+                                {connectedRepositoriesCount}
                               </p>
                             </div>
                             <div>
@@ -1184,6 +1238,10 @@ function SettingsPage() {
                             const managedMatch = managedRepositoriesByGithubId.get(
                               String(repository.githubRepositoryId),
                             );
+                            const managedRepositoryChecked = managedMatch
+                              ? managedRepositoryCheckedOverrides[managedMatch.id] ??
+                                managedMatch.isActive
+                              : false;
 
                             return (
                             <label
@@ -1223,7 +1281,7 @@ function SettingsPage() {
                                       <input
                                         type="checkbox"
                                         className="mt-1"
-                                        checked={managedMatch.isActive}
+                                        checked={managedRepositoryChecked}
                                         disabled={updateRepositoryMutation.isPending}
                                         aria-label={`Connected: ${repository.fullName}`}
                                         onChange={(event) => {
@@ -1231,18 +1289,41 @@ function SettingsPage() {
                                             updateRepositoryMutation.mutate(
                                               { repositoryId: managedMatch.id, isActive: true },
                                               {
-                                                onSuccess: () =>
+                                                onSuccess: () => {
+                                                  setManagedRepositoryCheckedOverrides((current) => ({
+                                                    ...current,
+                                                    [managedMatch.id]: undefined,
+                                                  }));
+                                                  patchConnectedRepositories(
+                                                    repository.installationStatus === "accessible" ? 1 : 0,
+                                                  );
                                                   notifySuccess(
                                                     "Repository reactivated",
                                                     "New GitHub activity for this repository will sync again.",
-                                                  ),
+                                                  );
+                                                },
+                                                onError: () => {
+                                                  setManagedRepositoryCheckedOverrides((current) => ({
+                                                    ...current,
+                                                    [managedMatch.id]: undefined,
+                                                  }));
+                                                },
                                               },
                                             );
                                           } else {
                                             updateRepositoryMutation.reset();
+                                            setManagedRepositoryCheckedOverrides((current) => ({
+                                              ...current,
+                                              [managedMatch.id]: false,
+                                            }));
                                             setConfirmDeactivateAccessibleRepo({
                                               repositoryId: managedMatch.id,
                                               fullName: repository.fullName,
+                                              connectedRepositoriesDelta:
+                                                repository.installationStatus === "accessible" &&
+                                                managedMatch.isActive
+                                                  ? -1
+                                                  : 0,
                                             });
                                           }
                                         }}
@@ -1315,7 +1396,11 @@ function SettingsPage() {
                                 autoSync: true,
                               },
                               {
-                                onSuccess: () => {
+                                onSuccess: (response) => {
+                                  patchConnectedRepositories(
+                                    response.data.selectedRepositoryIds.length,
+                                    response.data.state,
+                                  );
                                   setSelectedAccessibleRepositoryIds([]);
                                   notifySuccess(
                                     "Repositories connected",
@@ -1653,11 +1738,15 @@ function SettingsPage() {
                                 updateRepositoryMutation.mutate(
                                   { repositoryId: selectedManagedRepository.id, isActive: true },
                                   {
-                                    onSuccess: () =>
+                                    onSuccess: () => {
+                                      patchConnectedRepositories(
+                                        selectedAccessibleRepository?.installationStatus === "accessible" ? 1 : 0,
+                                      );
                                       notifySuccess(
                                         "Repository reactivated",
                                         "New GitHub activity for this repository will sync again.",
-                                      ),
+                                      );
+                                    },
                                   },
                                 )
                               }
@@ -2044,18 +2133,39 @@ function SettingsPage() {
                     },
                     {
                       onSuccess: () => {
+                        patchConnectedRepositories(
+                          confirmDeactivateAccessibleRepo.connectedRepositoriesDelta,
+                        );
+                        setManagedRepositoryCheckedOverrides((current) => ({
+                          ...current,
+                          [confirmDeactivateAccessibleRepo.repositoryId]: undefined,
+                        }));
                         setConfirmDeactivateAccessibleRepo(null);
                         notifySuccess(
                           "Repository deactivated",
                           "New GitHub activity for this repository will no longer be synced.",
                         );
                       },
+                      onError: () => {
+                        setManagedRepositoryCheckedOverrides((current) => ({
+                          ...current,
+                          [confirmDeactivateAccessibleRepo.repositoryId]: undefined,
+                        }));
+                      },
                     },
                   ),
               }
             : null
         }
-        onOpenChange={(open) => !open && setConfirmDeactivateAccessibleRepo(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setManagedRepositoryCheckedOverrides((current) => ({
+              ...current,
+              [confirmDeactivateAccessibleRepo?.repositoryId ?? ""]: undefined,
+            }));
+            setConfirmDeactivateAccessibleRepo(null);
+          }
+        }}
       />
       <ConfirmModal
         state={
