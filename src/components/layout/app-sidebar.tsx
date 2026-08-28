@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, FolderGit2, GitPullRequest, LayoutDashboard, Lightbulb, Settings } from "lucide-react";
+import { BrandLogo } from "@/components/layout/brand-logo";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/store/ui-store";
 
@@ -33,12 +34,13 @@ export function AppSidebar() {
       </button>
 
       <div className="h-full overflow-y-auto px-4 py-6">
-        <div className="mb-8 px-2">
+        <div className="mb-8 px-3">
           {sidebarOpen ? (
-            <>
-              <p className="hidden text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground md:block">DevLens</p>
-              <h1 className="mt-2 hidden text-2xl font-bold md:block">DevLens Web</h1>
-            </>
+            <BrandLogo
+              className="hidden w-full justify-start overflow-hidden md:flex"
+              imageClassName="h-14 w-[13.5rem] max-w-none object-cover object-left"
+              fallbackClassName="max-w-[12rem]"
+            />
           ) : null}
         </div>
         <nav className="space-y-2">

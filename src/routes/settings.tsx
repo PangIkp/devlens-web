@@ -57,6 +57,7 @@ import {
 } from "@/features/sync/sync.query";
 import { useMeQuery } from "@/features/users/users.query";
 import { getApiErrorCode, getErrorMessage } from "@/lib/api-errors";
+import { formatErrorMessage } from "@/lib/api-errors";
 import { rootRoute } from "@/routes/root";
 
 const settingsTabs = [
@@ -957,7 +958,9 @@ function SettingsPage() {
                           </div>
                           {githubConnectionQuery.data.data.lastSyncError ? (
                             <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-300">
-                              {githubConnectionQuery.data.data.lastSyncError}
+                              {formatErrorMessage(
+                                githubConnectionQuery.data.data.lastSyncError,
+                              )}
                             </div>
                           ) : null}
                         </div>
@@ -1207,7 +1210,9 @@ function SettingsPage() {
                                 </p>
                                 {repository.lastSyncError ? (
                                   <p className="text-sm text-rose-600 dark:text-rose-400">
-                                    {repository.lastSyncError}
+                                    {formatErrorMessage(
+                                      repository.lastSyncError,
+                                    )}
                                   </p>
                                 ) : null}
                               </div>
