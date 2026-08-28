@@ -492,7 +492,7 @@ describe("dashboard route", () => {
     const fetchStub = createDashboardFetchStub();
     vi.stubGlobal("fetch", fetchStub);
     const user = userEvent.setup();
-    const expectedRange = getDashboardDateRangeForPreset(7);
+    const expectedRange = getDashboardDateRangeForPreset(365);
 
     renderApp("/dashboard");
 
@@ -501,7 +501,7 @@ describe("dashboard route", () => {
     await user.click(screen.getByLabelText("Repository"));
     await user.click(await screen.findByRole("option", { name: "devlens-labs/devlens-web" }));
     await user.click(screen.getByLabelText("Date range"));
-    await user.click(await screen.findByRole("option", { name: "Last 7 Days" }));
+    await user.click(await screen.findByRole("option", { name: "Last 12 Months" }));
 
     const requestedUrls = fetchStub.mock.calls.map(([input]) => String(input));
 

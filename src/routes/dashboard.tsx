@@ -39,6 +39,7 @@ import {
 import {
   alignComparisonSeries,
   createLineSeriesData,
+  dashboardRangePresetLabels,
   dashboardRangePresets,
   getDashboardDateRangeForPreset,
   getDashboardPresetFromRange,
@@ -425,9 +426,11 @@ function DashboardPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="7">Last 7 Days</SelectItem>
-                    <SelectItem value="30">Last 30 Days</SelectItem>
-                    <SelectItem value="90">Last 90 Days</SelectItem>
+                    {dashboardRangePresets.map((preset) => (
+                      <SelectItem key={preset} value={String(preset)}>
+                        {dashboardRangePresetLabels[preset]}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </label>

@@ -21,6 +21,8 @@ import {
   useReviewInsightMutation,
 } from "@/features/insights/insights.query";
 import {
+  dashboardRangePresetLabels,
+  dashboardRangePresets,
   getDashboardDateRangeForPreset,
   getDashboardPresetFromRange,
 } from "@/features/dashboard/dashboard.utils";
@@ -244,7 +246,7 @@ function InsightsPage() {
                 <Select
                   value={String(selectedPreset)}
                   onValueChange={(value) => {
-                    const range = getDashboardDateRangeForPreset(Number(value) as 7 | 30 | 90);
+                    const range = getDashboardDateRangeForPreset(Number(value) as (typeof dashboardRangePresets)[number]);
                     updateSearch({ from: range.from, to: range.to, page: 1 });
                   }}
                 >
@@ -252,9 +254,11 @@ function InsightsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="7">Last 7 Days</SelectItem>
-                    <SelectItem value="30">Last 30 Days</SelectItem>
-                    <SelectItem value="90">Last 90 Days</SelectItem>
+                    {dashboardRangePresets.map((preset) => (
+                      <SelectItem key={preset} value={String(preset)}>
+                        {dashboardRangePresetLabels[preset]}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </label>

@@ -1,7 +1,14 @@
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_RANGE_DAYS = 30;
 
-export const dashboardRangePresets = [7, 30, 90] as const;
+export const dashboardRangePresets = [7, 30, 90, 180, 365] as const;
+export const dashboardRangePresetLabels: Record<DashboardRangePreset, string> = {
+  7: "Last 7 Days",
+  30: "Last 30 Days",
+  90: "Last 90 Days",
+  180: "Last 6 Months",
+  365: "Last 12 Months",
+};
 
 export type DashboardRangePreset = (typeof dashboardRangePresets)[number];
 
