@@ -2,6 +2,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createRoute, Navigate } from "@tanstack/react-router";
 import { z } from "zod";
+import { BrandLogo } from "@/components/layout/brand-logo";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -71,8 +72,12 @@ function LoginPage() {
       </div>
       <div className="w-full max-w-md">
         <div className="text-center">
-          <p className="text-xs font-medium uppercase tracking-[0.4em] text-accent">DevLens</p>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight">Sign in to DevLens</h1>
+          <BrandLogo
+            className="mx-auto w-full max-w-[24rem] justify-center"
+            imageClassName="h-24 w-full object-cover object-center"
+            fallbackClassName="items-center"
+          />
+          <p className="mt-3 text-xs font-medium uppercase tracking-[0.4em] text-accent">Sign in to DevLens</p>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             Local development session — sign in with any email to unlock the repository workflows.
           </p>

@@ -14,6 +14,7 @@ import { DashboardHotspotsTable } from "@/components/dashboard/dashboard-hotspot
 import { DashboardWorkloadDistribution } from "@/components/dashboard/dashboard-workload-distribution";
 import { useRepositoryMetricsQuery, useWorkloadDistributionQuery } from "@/features/dashboard/dashboard.query";
 import {
+  dashboardRangePresetLabels,
   dashboardRangePresets,
   getDashboardDateRangeForPreset,
   getDashboardPresetFromRange,
@@ -109,9 +110,11 @@ function RepositoryDetailPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="7">Last 7 Days</SelectItem>
-                      <SelectItem value="30">Last 30 Days</SelectItem>
-                      <SelectItem value="90">Last 90 Days</SelectItem>
+                      {dashboardRangePresets.map((preset) => (
+                        <SelectItem key={preset} value={String(preset)}>
+                          {dashboardRangePresetLabels[preset]}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </label>
