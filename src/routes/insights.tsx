@@ -105,6 +105,10 @@ function InsightsPage() {
     },
     Boolean(selectedOrganizationId),
   );
+  const repositories = useMemo(
+    () => repositoriesQuery.data?.data ?? [],
+    [repositoriesQuery.data?.data],
+  );
   const selectedPreset = getDashboardPresetFromRange(search.from, search.to) ?? 30;
   const insightsQuery = useInsightsQuery(
     {
@@ -152,6 +156,28 @@ function InsightsPage() {
       });
     }
   }, [navigate, organizations, search.organizationId]);
+
+  useEffect(() => {
+    if (!selectedOrganizationId || !search.repositoryId || repositories.length === 0) {
+      return;
+    }
+
+    const repositoryStillExists = repositories.some(
+      (repository) => repository.id === search.repositoryId,
+    );
+
+    if (!repositoryStillExists) {
+      void navigate({
+        search: (previous) => ({
+          ...previous,
+          organizationId: selectedOrganizationId,
+          repositoryId: repositories[0].id,
+          page: 1,
+        }),
+        replace: true,
+      });
+    }
+  }, [navigate, repositories, search.repositoryId, selectedOrganizationId]);
 
   function updateSearch(next: Partial<typeof search>) {
     void navigate({
@@ -211,7 +237,7 @@ function InsightsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All repositories</SelectItem>
-                    {(repositoriesQuery.data?.data ?? []).map((repository) => (
+                    {repositories.map((repository) => (
                       <SelectItem key={repository.id} value={repository.id}>
                         {repository.fullName}
                         {!repository.isActive ? " (inactive)" : ""}
