@@ -212,7 +212,9 @@ function DashboardPage() {
     },
     Boolean(selectedOrganizationId),
   );
-  const repositories = repositoriesQuery.data?.data ?? [];
+  const repositories = (repositoriesQuery.data?.data ?? []).filter(
+    (repository) => repository.isActive,
+  );
   const firstRepositoryId = repositories[0]?.id;
   const selectedRepositoryId = search.repositoryId ?? repositories[0]?.id;
   const selectedRepository = repositories.find((repository) => repository.id === selectedRepositoryId);

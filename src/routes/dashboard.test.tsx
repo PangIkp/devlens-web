@@ -19,6 +19,7 @@ function createDashboardFetchStub(options?: {
   summaryStatus?: number;
   pullRequestStatus?: number;
   reviewStatus?: number;
+  repositoriesData?: unknown[];
   deploymentData?: unknown;
   hotspotData?: unknown[];
   hotspotMeta?: unknown;
@@ -55,7 +56,7 @@ function createDashboardFetchStub(options?: {
     if (url.pathname === `/api/v1/organizations/${organizationId}/repositories`) {
       return Promise.resolve(
         jsonResponse(200, {
-          data: [
+          data: options?.repositoriesData ?? [
             {
               id: repositoryId,
               organizationId,
@@ -378,6 +379,49 @@ describe("dashboard route", () => {
     );
 
     expect((await screen.findAllByText("2h")).length).toBeGreaterThan(0);
+  });
+
+  it("filters inactive repositories out of the dashboard selector even if stale data includes them", async () => {
+    const fetchStub = createDashboardFetchStub({
+      repositoriesData: [
+        {
+          id: "repo-inactive",
+          organizationId,
+          githubId: "1000",
+          name: "inactive-repo",
+          fullName: "devlens-labs/inactive-repo",
+          defaultBranch: "main",
+          isActive: false,
+          archivedAt: null,
+          lastSyncedAt: "2026-08-12T00:00:00Z",
+          createdAt: "2026-08-10T10:00:00Z",
+          updatedAt: "2026-08-12T00:00:00Z",
+        },
+        {
+          id: repositoryId,
+          organizationId,
+          githubId: "1001",
+          name: "devlens-api",
+          fullName: "devlens-labs/devlens-api",
+          defaultBranch: "main",
+          isActive: true,
+          archivedAt: null,
+          lastSyncedAt: "2026-08-12T00:00:00Z",
+          createdAt: "2026-08-10T10:00:00Z",
+          updatedAt: "2026-08-12T00:00:00Z",
+        },
+      ],
+    });
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+
+    renderApp("/dashboard");
+
+    expect((await screen.findAllByText("2h")).length).toBeGreaterThan(0);
+
+    await user.click(screen.getByLabelText("Repository"));
+    expect(screen.queryByRole("option", { name: "devlens-labs/inactive-repo" })).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "devlens-labs/devlens-api" })).toBeInTheDocument();
   });
 
   it("renders API error state for summary failures", async () => {
