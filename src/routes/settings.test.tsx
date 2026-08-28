@@ -600,6 +600,13 @@ describe("settings route", () => {
     });
     expect(checkbox).toBeChecked();
 
+    await user.hover(checkbox);
+    expect(
+      await screen.findByText(
+        "Uncheck to deactivate this repository. DevLens will ask for confirmation before stopping new sync activity.",
+      ),
+    ).toBeInTheDocument();
+
     await user.click(checkbox);
     expect(
       await screen.findByText("Deactivate devlens-labs/devlens-api?"),
@@ -974,6 +981,14 @@ describe("settings route", () => {
     expect(
       screen.getByRole("button", { name: "Start incremental sync" }),
     ).toBeDisabled();
+    await user.hover(
+      screen.getByRole("button", { name: "Start incremental sync" }).parentElement as HTMLElement,
+    );
+    expect(
+      await screen.findByText(
+        "This repository must be selected from the GitHub installation before it can sync.",
+      ),
+    ).toBeInTheDocument();
     expect(
       fetchStub.mock.calls.some((call) => {
         const [input, requestInit] = call as [
@@ -1102,6 +1117,41 @@ describe("settings route", () => {
     expect(
       requestedUrls.some((url) => url.includes(`/github/repositories`) && !url.includes("/select")),
     ).toBe(false);
+  });
+
+  it("shows create-organization conflicts in a modal without exposing the request id", async () => {
+    const fetchStub = vi.fn().mockImplementation((input: string | URL, init?: RequestInit) => {
+      const url = new URL(String(input));
+      const method = init?.method ?? "GET";
+
+      if (url.pathname === "/api/v1/organizations" && method === "POST") {
+        return Promise.resolve(
+          jsonResponse(409, {
+            error: {
+              code: "ORGANIZATION_ALREADY_EXISTS",
+              message: "Organization already exists",
+              requestId: "srv-da10k9egekts7380550g-hibernate-6d6d564759-2m9k5/e9CrWwTE1f-000373",
+            },
+          }),
+        );
+      }
+
+      return createSettingsFetchStub()(input, init);
+    });
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+
+    renderApp("/settings");
+
+    await user.click(await screen.findByRole("button", { name: "New organization" }));
+    await user.type(screen.getByPlaceholderText("GitHub id"), "123");
+    await user.type(screen.getByPlaceholderText("slug"), "devlens");
+    await user.type(screen.getByPlaceholderText("name"), "DevLens Labs");
+    await user.click(screen.getByRole("button", { name: "Create organization" }));
+
+    expect(await screen.findByText("Could not create organization")).toBeInTheDocument();
+    expect(screen.getByText("Organization already exists")).toBeInTheDocument();
+    expect(screen.queryByText(/requestId:/i)).not.toBeInTheDocument();
   });
 
   it("prompts to create the first organization when none exist yet", async () => {

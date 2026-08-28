@@ -92,14 +92,9 @@ export function getErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
     const payload = getApiErrorPayload(error);
     const backendMessage = payload?.error?.message;
-    const requestId = payload?.error?.requestId;
     const formattedBackendMessage = backendMessage
       ? formatErrorMessage(backendMessage)
       : undefined;
-
-    if (formattedBackendMessage && requestId) {
-      return `${formattedBackendMessage} (requestId: ${requestId})`;
-    }
 
     if (formattedBackendMessage) {
       return formattedBackendMessage;
