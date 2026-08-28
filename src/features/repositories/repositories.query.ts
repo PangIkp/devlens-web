@@ -5,6 +5,10 @@ import {
   updateRepository,
   type ListRepositoriesParams,
 } from "@/features/repositories/repositories.api";
+import type {
+  RepositoryListResponse,
+  RepositoryResponse,
+} from "@/features/repositories/repositories.schemas";
 
 export const repositoriesKeys = {
   all: ["repositories"] as const,
@@ -36,7 +40,80 @@ export function useUpdateRepositoryMutation() {
   return useMutation({
     mutationFn: ({ repositoryId, isActive }: { repositoryId: string; isActive: boolean }) =>
       updateRepository(repositoryId, { isActive }),
-    onSuccess: (_, variables) => {
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey: repositoriesKeys.all });
+
+      const previousDetail = queryClient.getQueryData<RepositoryResponse>(
+        repositoriesKeys.detail(variables.repositoryId),
+      );
+      const previousLists = queryClient.getQueriesData<RepositoryListResponse>({
+        queryKey: repositoriesKeys.lists(),
+      });
+
+      queryClient.setQueryData<RepositoryResponse | undefined>(
+        repositoriesKeys.detail(variables.repositoryId),
+        (current) =>
+          current
+            ? {
+                ...current,
+                data: {
+                  ...current.data,
+                  isActive: variables.isActive,
+                },
+              }
+            : current,
+      );
+
+      queryClient.setQueriesData<RepositoryListResponse | undefined>(
+        { queryKey: repositoriesKeys.lists() },
+        (current) =>
+          current
+            ? {
+                ...current,
+                data: current.data.map((repository) =>
+                  repository.id === variables.repositoryId
+                    ? { ...repository, isActive: variables.isActive }
+                    : repository,
+                ),
+              }
+            : current,
+      );
+
+      return { previousDetail, previousLists };
+    },
+    onError: (_error, variables, context) => {
+      if (context?.previousDetail) {
+        queryClient.setQueryData(
+          repositoriesKeys.detail(variables.repositoryId),
+          context.previousDetail,
+        );
+      }
+
+      for (const [queryKey, data] of context?.previousLists ?? []) {
+        queryClient.setQueryData(queryKey, data);
+      }
+    },
+    onSuccess: (response, variables) => {
+      queryClient.setQueryData<RepositoryResponse>(
+        repositoriesKeys.detail(variables.repositoryId),
+        response,
+      );
+
+      queryClient.setQueriesData<RepositoryListResponse | undefined>(
+        { queryKey: repositoriesKeys.lists() },
+        (current) =>
+          current
+            ? {
+                ...current,
+                data: current.data.map((repository) =>
+                  repository.id === variables.repositoryId
+                    ? { ...repository, ...response.data }
+                    : repository,
+                ),
+              }
+            : current,
+      );
+
       void queryClient.invalidateQueries({ queryKey: repositoriesKeys.detail(variables.repositoryId) });
       void queryClient.invalidateQueries({ queryKey: repositoriesKeys.lists() });
     },

@@ -42,4 +42,17 @@ describe("api error formatting", () => {
       "Repository onboarding is required before sync",
     );
   });
+
+  it("maps GitHub installation ownership conflicts to a user-facing message", () => {
+    const error = new ApiError("Request failed with status 409", 409, {
+      error: {
+        code: "GITHUB_INSTALLATION_ALREADY_LINKED",
+        message: "ownership conflict",
+      },
+    });
+
+    expect(getErrorMessage(error)).toBe(
+      "This GitHub account or installation is already linked to another DevLens user. Disconnect it there first, or use a different GitHub account or installation.",
+    );
+  });
 });

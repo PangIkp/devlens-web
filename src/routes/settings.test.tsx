@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderApp } from "@/test/render-app";
 import { parseOrganizationIdFromInstallationState } from "@/routes/settings";
@@ -614,6 +614,7 @@ describe("settings route", () => {
 
     await user.click(screen.getByRole("button", { name: "Deactivate" }));
     expect(await screen.findByText("Repository deactivated")).toBeInTheDocument();
+    await waitFor(() => expect(checkbox).not.toBeChecked());
 
     const patchCall = fetchStub.mock.calls.find(([input], index) => {
       const init = fetchStub.mock.calls[index][1] as RequestInit | undefined;
@@ -627,6 +628,46 @@ describe("settings route", () => {
       (patchCall?.[1] as RequestInit).body as string,
     ) as { isActive: boolean };
     expect(body).toEqual({ isActive: false });
+  });
+
+  it("reactivates an inactive accessible repository immediately in the current view", async () => {
+    const fetchStub = createSettingsFetchStub({
+      accessibleSelectionStatus: "selected",
+      repositoryIsActive: false,
+    });
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+
+    renderApp("/settings?tab=github");
+
+    const checkbox = await screen.findByRole("checkbox", {
+      name: "Connected: devlens-labs/devlens-api",
+    });
+    expect(checkbox).not.toBeChecked();
+
+    await user.hover(checkbox);
+    expect(
+      await screen.findByText(
+        "Check to reactivate this repository and resume syncing new GitHub activity.",
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(checkbox);
+    expect(await screen.findByText("Repository reactivated")).toBeInTheDocument();
+    await waitFor(() => expect(checkbox).toBeChecked());
+
+    const patchCall = fetchStub.mock.calls.find(([input], index) => {
+      const init = fetchStub.mock.calls[index][1] as RequestInit | undefined;
+      return (
+        String(input).endsWith(`/repositories/${repositoryId}`) &&
+        init?.method === "PATCH"
+      );
+    });
+    expect(patchCall).toBeDefined();
+    const body = JSON.parse(
+      (patchCall?.[1] as RequestInit).body as string,
+    ) as { isActive: boolean };
+    expect(body).toEqual({ isActive: true });
   });
 
   it("handles installation callback search params, including the required state token", async () => {
@@ -698,6 +739,90 @@ describe("settings route", () => {
     expect(callbackCallsAfter).toBeGreaterThan(callbackCallsBefore);
   });
 
+  it("shows a clear ownership conflict message when the GitHub installation is already linked to another user during callback", async () => {
+    const baseFetchStub = createSettingsFetchStub();
+    const fetchStub = vi.fn().mockImplementation((input: string | URL, init?: RequestInit) => {
+      const url = new URL(String(input));
+      const method = init?.method ?? "GET";
+
+      if (
+        url.pathname === `/api/v1/organizations/${organizationId}/github/installations/callback` &&
+        method === "GET"
+      ) {
+        return Promise.resolve(
+          jsonResponse(409, {
+            error: {
+              code: "GITHUB_INSTALLATION_ALREADY_LINKED",
+              message: "ownership conflict",
+            },
+          }),
+        );
+      }
+
+      return baseFetchStub(input, init);
+    });
+    vi.stubGlobal("fetch", fetchStub);
+
+    renderApp(
+      `/settings?organizationId=${organizationId}&installation_id=999&state=${organizationId}%3A1700000000&setup_action=install`,
+    );
+
+    expect(
+      await screen.findByText("GitHub installation already linked"),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "This GitHub account or installation is already linked to another DevLens user. Disconnect it there first, or use a different GitHub account or installation.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Could not complete GitHub installation callback"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows a popup immediately when starting GitHub install is blocked by another linked user", async () => {
+    const baseFetchStub = createSettingsFetchStub();
+    const fetchStub = vi.fn().mockImplementation((input: string | URL, init?: RequestInit) => {
+      const url = new URL(String(input));
+      const method = init?.method ?? "GET";
+
+      if (
+        url.pathname === `/api/v1/organizations/${organizationId}/github/installations/start` &&
+        method === "POST"
+      ) {
+        return Promise.resolve(
+          jsonResponse(409, {
+            error: {
+              code: "GITHUB_INSTALLATION_ALREADY_LINKED",
+              message: "ownership conflict",
+            },
+          }),
+        );
+      }
+
+      return baseFetchStub(input, init);
+    });
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+
+    renderApp("/settings");
+
+    await user.click(await screen.findByRole("tab", { name: "GitHub" }));
+    await user.click(screen.getByRole("button", { name: "Start GitHub install" }));
+
+    expect(
+      await screen.findByText("GitHub installation already linked"),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "This GitHub account or installation is already linked to another DevLens user. Disconnect it there first, or use a different GitHub account or installation.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Could not start GitHub installation"),
+    ).not.toBeInTheDocument();
+  });
+
   it("disconnects GitHub after a confirmation step", async () => {
     const fetchStub = createSettingsFetchStub();
     vi.stubGlobal("fetch", fetchStub);
@@ -734,6 +859,48 @@ describe("settings route", () => {
         );
       }),
     ).toBe(true);
+  });
+
+  it("shows a clear ownership conflict message when a non-owner tries to disconnect GitHub", async () => {
+    const baseFetchStub = createSettingsFetchStub();
+    const fetchStub = vi.fn().mockImplementation((input: string | URL, init?: RequestInit) => {
+      const url = new URL(String(input));
+      const method = init?.method ?? "GET";
+
+      if (
+        url.pathname === `/api/v1/organizations/${organizationId}/github/connection` &&
+        method === "DELETE"
+      ) {
+        return Promise.resolve(
+          jsonResponse(409, {
+            error: {
+              code: "GITHUB_INSTALLATION_ALREADY_LINKED",
+              message: "ownership conflict",
+            },
+          }),
+        );
+      }
+
+      return baseFetchStub(input, init);
+    });
+    vi.stubGlobal("fetch", fetchStub);
+    const user = userEvent.setup();
+
+    renderApp("/settings");
+
+    await user.click(await screen.findByRole("tab", { name: "GitHub" }));
+    await user.click(screen.getByRole("button", { name: "Disconnect GitHub" }));
+    await user.click(screen.getByRole("button", { name: "Disconnect" }));
+
+    expect(
+      await screen.findByText("GitHub installation already linked"),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "This GitHub account or installation is already linked to another DevLens user. Disconnect it there first, or use a different GitHub account or installation.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Disconnect GitHub?")).not.toBeInTheDocument();
   });
 
   it("creates a new organization through the New organization dialog", async () => {

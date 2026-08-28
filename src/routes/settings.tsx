@@ -207,6 +207,12 @@ function getManagedSyncDisabledReason(params: {
   return undefined;
 }
 
+function getGitHubOwnershipConflictError(errors: Array<unknown>) {
+  return errors.find(
+    (error) => getApiErrorCode(error) === "GITHUB_INSTALLATION_ALREADY_LINKED",
+  );
+}
+
 function SettingsSkeleton() {
   return (
     <div className="space-y-8" aria-label="Settings loading">
@@ -567,6 +573,11 @@ function SettingsPage() {
     isPending: createSyncMutation.isPending,
   });
   const createSyncErrorCode = getApiErrorCode(createSyncMutation.error);
+  const githubOwnershipConflictError = getGitHubOwnershipConflictError([
+    startInstallationMutation.error,
+    completeInstallationMutation.error,
+    disconnectGitHubMutation.error,
+  ]);
 
   const accessibleSelectionSummary = useMemo(() => {
     return selectedAccessibleRepositoryIds.length === 0
@@ -1040,13 +1051,24 @@ function SettingsPage() {
                         ) : null}
                       </div>
 
+                      {startInstallationMutation.isError &&
+                      getApiErrorCode(startInstallationMutation.error) !==
+                        "GITHUB_INSTALLATION_ALREADY_LINKED" ? (
+                        <ErrorState
+                          title="Could not start GitHub installation"
+                          message={getErrorMessage(startInstallationMutation.error)}
+                        />
+                      ) : null}
+
                       {completeInstallationMutation.isPending ? (
                         <p className="text-sm text-muted-foreground">
                           Handling GitHub installation callback...
                         </p>
                       ) : null}
 
-                      {completeInstallationMutation.isError ? (
+                      {completeInstallationMutation.isError &&
+                      getApiErrorCode(completeInstallationMutation.error) !==
+                        "GITHUB_INSTALLATION_ALREADY_LINKED" ? (
                         <ErrorState
                           title="Could not complete GitHub installation callback"
                           message={getErrorMessage(
@@ -2103,11 +2125,16 @@ function SettingsPage() {
       />
       <ConfirmModal
         state={
-          confirmDisconnect
+          confirmDisconnect &&
+          getApiErrorCode(disconnectGitHubMutation.error) !==
+            "GITHUB_INSTALLATION_ALREADY_LINKED"
             ? {
                 title: "Disconnect GitHub?",
                 description: "Are you sure? This can't be undone from the UI.",
-                errorMessage: disconnectGitHubMutation.isError
+                errorMessage:
+                  disconnectGitHubMutation.isError &&
+                  getApiErrorCode(disconnectGitHubMutation.error) !==
+                    "GITHUB_INSTALLATION_ALREADY_LINKED"
                   ? getErrorMessage(disconnectGitHubMutation.error)
                   : undefined,
                 confirmLabel: "Disconnect",
@@ -2127,6 +2154,24 @@ function SettingsPage() {
             : null
         }
         onOpenChange={(open) => !open && setConfirmDisconnect(false)}
+      />
+      <ErrorModal
+        state={
+          githubOwnershipConflictError
+            ? {
+                title: "GitHub installation already linked",
+                message: getErrorMessage(githubOwnershipConflictError),
+              }
+            : null
+        }
+        onOpenChange={(open) => {
+          if (!open) {
+            startInstallationMutation.reset();
+            completeInstallationMutation.reset();
+            disconnectGitHubMutation.reset();
+            setConfirmDisconnect(false);
+          }
+        }}
       />
       <Dialog open={createOrgDialogOpen} onOpenChange={setCreateOrgDialogOpen}>
         <DialogContent>

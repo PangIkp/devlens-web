@@ -20,6 +20,14 @@ export function getApiErrorCode(error: unknown) {
   return getApiErrorPayload(error)?.error?.code;
 }
 
+function formatApiErrorCodeMessage(code: string | undefined) {
+  if (code === "GITHUB_INSTALLATION_ALREADY_LINKED") {
+    return "This GitHub account or installation is already linked to another DevLens user. Disconnect it there first, or use a different GitHub account or installation.";
+  }
+
+  return undefined;
+}
+
 function tryParseJsonObject(value: string) {
   try {
     const parsed = JSON.parse(value) as unknown;
@@ -91,10 +99,16 @@ export function formatErrorMessage(message: string) {
 export function getErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
     const payload = getApiErrorPayload(error);
+    const apiErrorCode = payload?.error?.code;
     const backendMessage = payload?.error?.message;
+    const formattedCodeMessage = formatApiErrorCodeMessage(apiErrorCode);
     const formattedBackendMessage = backendMessage
       ? formatErrorMessage(backendMessage)
       : undefined;
+
+    if (formattedCodeMessage) {
+      return formattedCodeMessage;
+    }
 
     if (formattedBackendMessage) {
       return formattedBackendMessage;
