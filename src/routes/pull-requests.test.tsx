@@ -139,12 +139,21 @@ function createPullRequestsFetchStub(options?: {
 
 describe("pull requests routes", () => {
   it("lists pull requests and navigates to detail", async () => {
-    vi.stubGlobal("fetch", createPullRequestsFetchStub());
+    const fetchStub = createPullRequestsFetchStub();
+    vi.stubGlobal("fetch", fetchStub);
     const user = userEvent.setup();
 
     renderApp("/pull-requests");
 
     expect(await screen.findByText("Improve sync retries")).toBeInTheDocument();
+    const repositoryListRequest = fetchStub.mock.calls.find(([input]) =>
+      new URL(String(input)).pathname ===
+      `/api/v1/organizations/${organizationId}/repositories`,
+    );
+
+    expect(repositoryListRequest).toBeDefined();
+    expect(new URL(String(repositoryListRequest?.[0])).searchParams.get("status")).toBe("active");
+
     await user.click(screen.getByRole("link", { name: "Improve sync retries" }));
 
     await user.click(await screen.findByRole("tab", { name: "Changed files (1)" }));
