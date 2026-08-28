@@ -12,7 +12,7 @@ describe("api error formatting", () => {
     );
   });
 
-  it("preserves the request id while formatting backend API errors", () => {
+  it("omits the request id from backend API errors shown in the UI", () => {
     const error = new ApiError("Request failed with status 409", 409, {
       error: {
         code: "GITHUB_INSTALLATION_REQUIRED",
@@ -23,7 +23,7 @@ describe("api error formatting", () => {
     });
 
     expect(getErrorMessage(error)).toBe(
-      "The GitHub app installation for this organization is no longer available. Reconnect GitHub and try syncing again. (requestId: req_123)",
+      "The GitHub app installation for this organization is no longer available. Reconnect GitHub and try syncing again.",
     );
   });
 

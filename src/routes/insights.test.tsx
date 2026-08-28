@@ -179,4 +179,16 @@ describe("insights route", () => {
     expect(screen.getByText("24")).toBeInTheDocument();
     expect(screen.getByText(/1 insight was hidden/)).toBeInTheDocument();
   });
+
+  it("falls back to the first active repository when the URL points at one that is no longer selectable", async () => {
+    vi.stubGlobal("fetch", createInsightsFetchStub());
+
+    const { router } = renderApp(
+      "/insights?organizationId=11111111-1111-4111-8111-111111111111&repositoryId=99999999-9999-4999-8999-999999999999",
+    );
+
+    expect(await screen.findByRole("heading", { name: "Review Wait Time increased" })).toBeInTheDocument();
+    expect(router.state.location.search.organizationId).toBe(organizationId);
+    expect(router.state.location.search.repositoryId).toBe(repositoryId);
+  });
 });

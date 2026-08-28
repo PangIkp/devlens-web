@@ -19,11 +19,13 @@ import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
 import { RequiredMark } from "@/components/ui/required-mark";
 import { FieldError } from "@/components/ui/field-error";
 import { InfoTooltip } from "@/components/shared/info-tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   SuccessModal,
   type SuccessModalState,
 } from "@/components/shared/success-modal";
 import { ConfirmModal } from "@/components/shared/confirm-modal";
+import { ErrorModal } from "@/components/shared/error-modal";
 import { OrganizationRetentionSettingsCard } from "@/components/settings/organization-retention-settings-card";
 import { OrganizationRuleSettingsCard } from "@/components/settings/organization-rule-settings-card";
 import { organizationSettingsKeys } from "@/features/organization-settings/organization-settings.query";
@@ -168,6 +170,41 @@ function getSyncTone(status: string) {
   }
 
   return "info" as const;
+}
+
+function getManagedSyncDisabledReason(params: {
+  selectedRepositoryId?: string;
+  repositorySyncReady: boolean;
+  selectedRepositoryNeedsOnboarding: boolean;
+  selectedRepositoryAccessUnavailable: boolean;
+  selectedRepositoryDeactivated: boolean;
+  isPending: boolean;
+}) {
+  if (!params.selectedRepositoryId) {
+    return "Select a managed repository before starting a sync.";
+  }
+
+  if (!params.repositorySyncReady) {
+    return "Complete GitHub installation first. This organization is not connected yet.";
+  }
+
+  if (params.selectedRepositoryNeedsOnboarding) {
+    return "This repository must be selected from the GitHub installation before it can sync.";
+  }
+
+  if (params.selectedRepositoryAccessUnavailable) {
+    return "The current GitHub installation no longer exposes this repository. Reconnect GitHub or update repository selection first.";
+  }
+
+  if (params.selectedRepositoryDeactivated) {
+    return "This repository is inactive. Reactivate it from Accessible repositories before starting a sync.";
+  }
+
+  if (params.isPending) {
+    return "A sync request is already being started for this repository.";
+  }
+
+  return undefined;
 }
 
 function SettingsSkeleton() {
@@ -521,6 +558,14 @@ function SettingsPage() {
     !selectedRepositoryAccessUnavailable &&
     !selectedRepositoryDeactivated &&
     Boolean(selectedRepositoryId);
+  const managedSyncDisabledReason = getManagedSyncDisabledReason({
+    selectedRepositoryId,
+    repositorySyncReady,
+    selectedRepositoryNeedsOnboarding,
+    selectedRepositoryAccessUnavailable,
+    selectedRepositoryDeactivated,
+    isPending: createSyncMutation.isPending,
+  });
   const createSyncErrorCode = getApiErrorCode(createSyncMutation.error);
 
   const accessibleSelectionSummary = useMemo(() => {
@@ -1150,33 +1195,44 @@ function SettingsPage() {
                                   }
                                 />
                               ) : managedMatch ? (
-                                <input
-                                  type="checkbox"
-                                  className="mt-1"
-                                  checked={managedMatch.isActive}
-                                  disabled={updateRepositoryMutation.isPending}
-                                  aria-label={`Connected: ${repository.fullName}`}
-                                  onChange={(event) => {
-                                    if (event.target.checked) {
-                                      updateRepositoryMutation.mutate(
-                                        { repositoryId: managedMatch.id, isActive: true },
-                                        {
-                                          onSuccess: () =>
-                                            notifySuccess(
-                                              "Repository reactivated",
-                                              "New GitHub activity for this repository will sync again.",
-                                            ),
-                                        },
-                                      );
-                                    } else {
-                                      updateRepositoryMutation.reset();
-                                      setConfirmDeactivateAccessibleRepo({
-                                        repositoryId: managedMatch.id,
-                                        fullName: repository.fullName,
-                                      });
-                                    }
-                                  }}
-                                />
+                                <Tooltip delayDuration={150}>
+                                  <TooltipTrigger asChild>
+                                    <span className="inline-flex shrink-0">
+                                      <input
+                                        type="checkbox"
+                                        className="mt-1"
+                                        checked={managedMatch.isActive}
+                                        disabled={updateRepositoryMutation.isPending}
+                                        aria-label={`Connected: ${repository.fullName}`}
+                                        onChange={(event) => {
+                                          if (event.target.checked) {
+                                            updateRepositoryMutation.mutate(
+                                              { repositoryId: managedMatch.id, isActive: true },
+                                              {
+                                                onSuccess: () =>
+                                                  notifySuccess(
+                                                    "Repository reactivated",
+                                                    "New GitHub activity for this repository will sync again.",
+                                                  ),
+                                              },
+                                            );
+                                          } else {
+                                            updateRepositoryMutation.reset();
+                                            setConfirmDeactivateAccessibleRepo({
+                                              repositoryId: managedMatch.id,
+                                              fullName: repository.fullName,
+                                            });
+                                          }
+                                        }}
+                                      />
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {managedMatch.isActive
+                                      ? "Uncheck to deactivate this repository. DevLens will ask for confirmation before stopping new sync activity."
+                                      : "Check to reactivate this repository and resume syncing new GitHub activity."}
+                                  </TooltipContent>
+                                </Tooltip>
                               ) : (
                                 <span
                                   className="mt-1 flex h-4 w-4 shrink-0 items-center justify-center text-emerald-600 dark:text-emerald-400"
@@ -1442,57 +1498,79 @@ function SettingsPage() {
                             ))}
                           </SelectContent>
                         </Select>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="whitespace-nowrap"
-                          disabled={
-                            !syncActionReady || createSyncMutation.isPending
-                          }
-                          onClick={() =>
-                            selectedRepositoryId &&
-                            createSyncMutation.mutate(
-                              {
-                                repositoryId: selectedRepositoryId,
-                                mode: "incremental",
-                              },
-                              {
-                                onSuccess: () =>
-                                  notifySuccess(
-                                    "Sync started",
-                                    "Incremental sync has been queued.",
-                                  ),
-                              },
-                            )
-                          }
-                        >
-                          Start incremental sync
-                        </Button>
-                        <Button
-                          type="button"
-                          className="whitespace-nowrap"
-                          disabled={
-                            !syncActionReady || createSyncMutation.isPending
-                          }
-                          onClick={() =>
-                            selectedRepositoryId &&
-                            createSyncMutation.mutate(
-                              {
-                                repositoryId: selectedRepositoryId,
-                                mode: "full",
-                              },
-                              {
-                                onSuccess: () =>
-                                  notifySuccess(
-                                    "Sync started",
-                                    "Full sync has been queued.",
-                                  ),
-                              },
-                            )
-                          }
-                        >
-                          Start full sync
-                        </Button>
+                        <Tooltip delayDuration={150}>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="whitespace-nowrap"
+                                disabled={
+                                  !syncActionReady || createSyncMutation.isPending
+                                }
+                                onClick={() =>
+                                  selectedRepositoryId &&
+                                  createSyncMutation.mutate(
+                                    {
+                                      repositoryId: selectedRepositoryId,
+                                      mode: "incremental",
+                                    },
+                                    {
+                                      onSuccess: () =>
+                                        notifySuccess(
+                                          "Sync started",
+                                          "Incremental sync has been queued.",
+                                        ),
+                                    },
+                                  )
+                                }
+                              >
+                                Start incremental sync
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          {!syncActionReady || createSyncMutation.isPending ? (
+                            <TooltipContent>
+                              {managedSyncDisabledReason}
+                            </TooltipContent>
+                          ) : null}
+                        </Tooltip>
+                        <Tooltip delayDuration={150}>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex">
+                              <Button
+                                type="button"
+                                className="whitespace-nowrap"
+                                disabled={
+                                  !syncActionReady || createSyncMutation.isPending
+                                }
+                                onClick={() =>
+                                  selectedRepositoryId &&
+                                  createSyncMutation.mutate(
+                                    {
+                                      repositoryId: selectedRepositoryId,
+                                      mode: "full",
+                                    },
+                                    {
+                                      onSuccess: () =>
+                                        notifySuccess(
+                                          "Sync started",
+                                          "Full sync has been queued.",
+                                        ),
+                                    },
+                                  )
+                                }
+                              >
+                                Start full sync
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          {!syncActionReady || createSyncMutation.isPending ? (
+                            <TooltipContent>
+                              {managedSyncDisabledReason}
+                            </TooltipContent>
+                          ) : null}
+                        </Tooltip>
                       </div>
 
                       {!repositorySyncReady ? (
@@ -2060,14 +2138,6 @@ function SettingsPage() {
           <p className="mt-1 text-sm text-muted-foreground">
             Link another GitHub organization to DevLens.
           </p>
-          {createOrganizationMutation.isError ? (
-            <div className="mt-4">
-              <ErrorState
-                title="Could not create organization"
-                message={getErrorMessage(createOrganizationMutation.error)}
-              />
-            </div>
-          ) : null}
           <div className="mt-4 space-y-3">
             <label className="space-y-2">
               <span className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
@@ -2182,6 +2252,21 @@ function SettingsPage() {
           </Button>
         </DialogContent>
       </Dialog>
+      <ErrorModal
+        state={
+          createOrganizationMutation.isError
+            ? {
+                title: "Could not create organization",
+                message: getErrorMessage(createOrganizationMutation.error),
+              }
+            : null
+        }
+        onOpenChange={(open) => {
+          if (!open) {
+            createOrganizationMutation.reset();
+          }
+        }}
+      />
     </AppLayout>
   );
 }
