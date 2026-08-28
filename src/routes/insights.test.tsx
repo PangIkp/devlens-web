@@ -126,6 +126,14 @@ describe("insights route", () => {
 
     expect(await screen.findByText("No insights detected")).toBeInTheDocument();
     expect(fetchStub.mock.calls.some(([input]) => String(input).includes("/dismiss"))).toBe(true);
+
+    const repositoryListRequest = fetchStub.mock.calls.find(([input]) =>
+      new URL(String(input)).pathname ===
+      `/api/v1/organizations/${organizationId}/repositories`,
+    );
+
+    expect(repositoryListRequest).toBeDefined();
+    expect(new URL(String(repositoryListRequest?.[0])).searchParams.get("status")).toBe("active");
   });
 
   it("requests insights from the primary organization-scoped path", async () => {

@@ -99,6 +99,7 @@ function InsightsPage() {
       organizationId: selectedOrganizationId ?? "",
       page: 1,
       pageSize: 100,
+      status: "active",
       sortBy: "name",
       sortOrder: "asc",
     },

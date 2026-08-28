@@ -236,13 +236,22 @@ function createDashboardFetchStub(options?: {
 
 describe("dashboard route", () => {
   it("renders dashboard summary success state", async () => {
-    vi.stubGlobal("fetch", createDashboardFetchStub());
+    const fetchStub = createDashboardFetchStub();
+    vi.stubGlobal("fetch", fetchStub);
 
     renderApp("/dashboard");
 
     expect((await screen.findAllByText("2h")).length).toBeGreaterThan(0);
     expect(screen.getByText("80%")).toBeInTheDocument();
     expect(screen.getByText("internal/metrics/calculator.go")).toBeInTheDocument();
+
+    const repositoryListRequest = fetchStub.mock.calls.find(([input]) =>
+      new URL(String(input)).pathname ===
+      `/api/v1/organizations/${organizationId}/repositories`,
+    );
+
+    expect(repositoryListRequest).toBeDefined();
+    expect(new URL(String(repositoryListRequest?.[0])).searchParams.get("status")).toBe("active");
   });
 
   it("renders loading state before summary resolves", async () => {
